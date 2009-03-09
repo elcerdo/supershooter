@@ -6,6 +6,8 @@ find_package(SDL_image REQUIRED)
 find_package(OpenGL REQUIRED)
 
 add_executable(supershooter
+    engine.cpp
+    except.cpp
     main.cpp)
 target_link_libraries(supershooter
     ${SDL_LIBRARY}

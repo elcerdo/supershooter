@@ -1,17 +1,5 @@
-#include <SDL/SDL.h>
-#include <SDL/SDL_syswm.h>
-#include <SDL/SDL_image.h>
-#include <GL/gl.h>
-#include <iostream>
-#include <cassert>
-#include <map>
-#include <utility>
-#include <string>
-using std::endl;
-using std::cout;
-using std::cerr;
-
-static SDL_Surface *screen=NULL;
+#include "engine.h"
+#include "except.h"
 
 class Listener {
 public:
@@ -36,151 +24,41 @@ public:
 protected:
 };
 
-struct Except {
-    enum ExceptType {
-        SS_INIT_ERR,
-        SS_LOADING_ERR,
-        SS_TOO_MANY_SPRITES_ERR,
-        SS_CONVERSION_ERR,
-    };
-    Except(ExceptType n) : n(n) {};
-    ExceptType n;
-};
-
-
-void init_sdl(int w=800,int h=600,int d=32) {
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_OPENGL)) { cerr<<"cannot initialize sdl..."<<endl; throw Except(Except::SS_INIT_ERR); }
-
-    screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
-    if (not screen) { cerr<<"cannot create sdl screen..."<<endl; throw Except(Except::SS_INIT_ERR); }
-
-	glEnable(GL_TEXTURE_2D);
-	glShadeModel(GL_SMOOTH);
-	glClearColor(1,1,0,1);
-	glClearDepth(1);// Depth Buffer Setup
-	glEnable(GL_DEPTH_TEST);// Enables Depth Testing
-	glDepthFunc(GL_LEQUAL);// The Type Of Depth Testing To Do
-	glEnable(GL_BLEND);//Alpha blending
-	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);// Really Nice Perspective Calculations
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0,w,h,0,1.0,-1.0);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-}
-
-class Sprite {
-public:
-    Sprite(unsigned int id,double w,double h) : id(id), x(0), y(0), angle(0), factor(1), w(w), h(h) {}
-    void draw() const {
-        glBindTexture(GL_TEXTURE_2D,id);
-        glPushMatrix();
-            glTranslatef(x+w/2,y+h/2,0.0);
-            glRotatef(angle,0.0,0.0,1.0);
-            glNormal3f(0.0,0.0,1.0);
-            glBegin(GL_QUADS);
-            glTexCoord2f(1.0,1.0); glVertex3f(factor*w/2,factor*h/2,0);
-            glTexCoord2f(1.0,0.0); glVertex3f(factor*w/2,-factor*h/2,0);
-            glTexCoord2f(0.0,0.0); glVertex3f(-factor*w/2,-factor*h/2,0);
-            glTexCoord2f(0.0,1.0); glVertex3f(-factor*w/2,factor*h/2,0);
-        glEnd();
-        glPopMatrix();
-    }
-    float x,y,angle,factor;
-protected:
-    unsigned int id;
-    float w,h;
-};
-
-
-class SpriteManager; 
-static SpriteManager *mSpriteManager=NULL;
-class SpriteManager {
-protected:
-    SpriteManager(size_t maxid=256) : maxid(maxid) {
-        ids=new unsigned int[maxid];
-        currentid=0;
-        glGenTextures(maxid,ids);
-    }
-public:
-    static SpriteManager *get() {
-        if (not mSpriteManager) mSpriteManager=new SpriteManager;
-        return mSpriteManager;
-    }
-    static void free() {
-        if (mSpriteManager) delete mSpriteManager;
-    }
-
-    void load_image(const std::string &filename) {
-        if (currentid>=maxid-1) throw Except(Except::SS_TOO_MANY_SPRITES_ERR);
-
-        SDL_Surface *surf=IMG_Load(filename.c_str());
-        if (not surf) { cerr<<"error loading '"<<filename<<"': "<<IMG_GetError()<<endl; throw Except(Except::SS_LOADING_ERR); }
-        cout<<"loaded '"<<filename<<"' "<<surf->w<<"x"<<surf->h<<endl;
-
-        if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_CONVERSION_ERR); }
-        glBindTexture(GL_TEXTURE_2D,ids[currentid]);
-        glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
-
-        idmap[filename]=std::make_pair(ids[currentid],surf);
-        currentid++;
-    }
-    Sprite *get_sprite(const std::string &name) {
-        std::pair<unsigned int,SDL_Surface*> match=idmap[name];
-        return new Sprite(match.first,match.second->w,match.second->h);
-    }
-    void dump() const {
-        cout<<currentid<<"/"<<maxid<<" sprites"<<endl;
-        for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) cout<<i->first<<" "<<i->second.first<<" "<<i->second.second->w<<"x"<<i->second.second->h<<endl;
-    }
-    ~SpriteManager() {
-        delete [] ids;
-        for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) SDL_FreeSurface(i->second.second);
-    }
-protected:
-    typedef std::map<std::string,std::pair<unsigned int,SDL_Surface*> > IdMap;
-    unsigned int *ids;
-    size_t currentid,maxid;
-    IdMap idmap;
-};
-
-    
 int main() {
-    init_sdl();
+    try {
+        SdlManager::init();
+        SpriteManager::init();
 
-    SpriteManager::get()->load_image("logo.png");
-    SpriteManager::get()->load_image("aa.png");
-    Sprite *aa=SpriteManager::get()->get_sprite("logo.png");
-    aa->x=50.;
-    aa->y=100.;
+        SpriteManager::get()->load_image("logo.png");
+        SpriteManager::get()->load_image("aa.png");
+        Sprite *aa=SpriteManager::get()->get_sprite("aa.png");
 
-    SpriteManager::get()->dump();
+        Sprites sprites;
 
-    Listener listener;
-    while (not listener.quit) {
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+        SpriteManager::get()->dump();
 
-        aa->draw();
-        SDL_GL_SwapBuffers();  
-        SDL_Flip(screen);
+        Listener listener;
+        while (not listener.quit) {
+            SdlManager::get()->clear();
 
-        listener.update();
-        aa->x+=1.5;
-        if (aa->x>800) aa->x=-30;
+            aa->draw();
 
-        SDL_Delay(10);
+            SdlManager::get()->swap();
+
+            listener.update();
+
+            aa->x+=1.3;
+            if (aa->x>800) aa->x=-30;
+
+            SdlManager::get()->wait();
+        }
+
+        delete aa;
+        SdlManager::free();
+        SpriteManager::free();
+    } catch (Except e) {
+        e.dump();
     }
-
-    delete aa;
-
-    SpriteManager::free();
-    SDL_FreeSurface(screen);
-    SDL_Quit();
 }
 
 
