@@ -56,7 +56,7 @@ void init_sdl(int w=800,int h=600,int d=32) {
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
-	glClearColor(1,0,0,1);
+	glClearColor(1,1,0,1);
 	glClearDepth(1);// Depth Buffer Setup
 	glEnable(GL_DEPTH_TEST);// Enables Depth Testing
 	glDepthFunc(GL_LEQUAL);// The Type Of Depth Testing To Do
@@ -74,22 +74,46 @@ void init_sdl(int w=800,int h=600,int d=32) {
 
 class Sprite {
 public:
-    Sprite(unsigned int id,double w,double h) : id(id), x(0), y(0), angle(0), w(w), h(h) {}
-    void draw() const {}
-    float x,y,angle;
+    Sprite(unsigned int id,double w,double h) : id(id), x(0), y(0), angle(0), factor(1), w(w), h(h) {}
+    void draw() const {
+        glBindTexture(GL_TEXTURE_2D,id);
+        glPushMatrix();
+            glTranslatef(x+w/2,y+h/2,0.0);
+            glRotatef(angle,0.0,0.0,1.0);
+            glNormal3f(0.0,0.0,1.0);
+            glBegin(GL_QUADS);
+            glTexCoord2f(1.0,1.0); glVertex3f(factor*w/2,factor*h/2,0);
+            glTexCoord2f(1.0,0.0); glVertex3f(factor*w/2,-factor*h/2,0);
+            glTexCoord2f(0.0,0.0); glVertex3f(-factor*w/2,-factor*h/2,0);
+            glTexCoord2f(0.0,1.0); glVertex3f(-factor*w/2,factor*h/2,0);
+        glEnd();
+        glPopMatrix();
+    }
+    float x,y,angle,factor;
 protected:
     unsigned int id;
     float w,h;
 };
 
 
+class SpriteManager; 
+static SpriteManager *mSpriteManager=NULL;
 class SpriteManager {
-public:
+protected:
     SpriteManager(size_t maxid=256) : maxid(maxid) {
         ids=new unsigned int[maxid];
         currentid=0;
         glGenTextures(maxid,ids);
     }
+public:
+    static SpriteManager *get() {
+        if (not mSpriteManager) mSpriteManager=new SpriteManager;
+        return mSpriteManager;
+    }
+    static void free() {
+        if (mSpriteManager) delete mSpriteManager;
+    }
+
     void load_image(const std::string &filename) {
         if (currentid>=maxid-1) throw Except(Except::SS_TOO_MANY_SPRITES_ERR);
 
@@ -98,7 +122,7 @@ public:
         cout<<"loaded '"<<filename<<"' "<<surf->w<<"x"<<surf->h<<endl;
 
         if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_CONVERSION_ERR); }
-        glBindTexture(GL_TEXTURE_2D,currentid);
+        glBindTexture(GL_TEXTURE_2D,ids[currentid]);
         glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
@@ -129,25 +153,32 @@ protected:
 int main() {
     init_sdl();
 
-    SpriteManager sprites;
-    sprites.load_image("logo.png");
-    Sprite *aa=sprites.get_sprite("logo.png");
+    SpriteManager::get()->load_image("logo.png");
+    SpriteManager::get()->load_image("aa.png");
+    Sprite *aa=SpriteManager::get()->get_sprite("logo.png");
+    aa->x=50.;
+    aa->y=100.;
 
-    sprites.dump();
+    SpriteManager::get()->dump();
 
     Listener listener;
     while (not listener.quit) {
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
+        aa->draw();
         SDL_GL_SwapBuffers();  
         SDL_Flip(screen);
 
         listener.update();
+        aa->x+=1.5;
+        if (aa->x>800) aa->x=-30;
 
         SDL_Delay(10);
     }
 
     delete aa;
+
+    SpriteManager::free();
     SDL_FreeSurface(screen);
     SDL_Quit();
 }
