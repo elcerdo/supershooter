@@ -30,8 +30,8 @@ int main() {
         SpriteManager::init();
 
         SpriteManager::get()->load_image("logo.png");
-        SpriteManager::get()->load_image("aa.png");
-        Sprite *aa=SpriteManager::get()->get_sprite("aa.png");
+        SpriteManager::get()->load_image("../aa.png");
+        Sprite *aa=SpriteManager::get()->get_sprite("aa");
 
         Sprites sprites;
 

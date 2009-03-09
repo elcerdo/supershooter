@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cassert>
 #include <utility>
+#include <boost/regex.hpp>
 #include "except.h"
 using std::endl;
 using std::cerr;
@@ -111,6 +112,11 @@ SpriteManager::~SpriteManager() {
 }
 
 void SpriteManager::load_image(const std::string &filename) {
+    static const boost::regex e("(\\A|\\A.*/)(\\w+)\\.(png|jpg)\\Z");
+    boost::smatch what;
+    if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_ERR);
+    if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_ERR);
+
     if (currentid>=maxid-1) throw Except(Except::SS_TOO_MANY_SPRITES_ERR);
 
     SDL_Surface *surf=IMG_Load(filename.c_str());
@@ -122,7 +128,7 @@ void SpriteManager::load_image(const std::string &filename) {
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 
-    idmap[filename]=std::make_pair(ids[currentid],surf);
+    idmap[what[2]]=std::make_pair(ids[currentid],surf);
     currentid++;
 }
 

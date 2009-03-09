@@ -10,6 +10,7 @@ add_executable(supershooter
     except.cpp
     main.cpp)
 target_link_libraries(supershooter
+    boost_regex
     ${SDL_LIBRARY}
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
