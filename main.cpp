@@ -35,12 +35,29 @@ int main() {
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump(cout);
 
-        Sprite *aa=SpriteManager::get()->get_sprite("aa");
+        Sprite *aa=SpriteManager::get()->get_sprite("logo");
+        aa->y=100;
+        aa->dump(cout);
+
+        Sprite *bb=SpriteManager::get()->get_sprite("font");
+        bb->x=150;
+        bb->y=150;
+        dynamic_cast<StateSprite*>(bb)->state=1;
+        bb->dump(cout);
+
+        Sprite *cc=SpriteManager::get()->get_sprite("bullet");
+        cc->x=150;
+        cc->y=200;
+        dynamic_cast<AnimatedSprite*>(cc)->speed=0.2;
+        cc->dump(cout);
+
         Listener listener;
         while (not listener.quit) {
             SdlManager::get()->clear();
 
             aa->draw();
+            bb->draw();
+            cc->draw();
 
             SdlManager::get()->swap();
 
@@ -53,6 +70,8 @@ int main() {
         }
 
         delete aa;
+        delete bb;
+        delete cc;
         SdlManager::free();
         SpriteManager::free();
     } catch (Except e) {

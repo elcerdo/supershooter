@@ -70,11 +70,12 @@ void SdlManager::wait() {
 }
 
 //***********************************************************
-Sprite::Sprite(unsigned int id,double w,double h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name) {}
+Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name) {}
+
 void Sprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
-        glTranslatef(x+w/2,y+h/2,0.0);
+        glTranslatef(x,y,0.0);
         glRotatef(angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
@@ -86,9 +87,54 @@ void Sprite::draw() const {
     glPopMatrix();
 }
 
-void Sprite::dump(std::ostream &os) const {
-    os<<name<<" ["<<x<<","<<y<<"] static"<<endl;
+void Sprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"] static"<<endl; }
+
+StateSprite::StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate) : Sprite(id,w,h/nstate,name), nstate(nstate), rh(1./nstate), state(0) {}
+
+void StateSprite::draw() const {
+    float ya=rh*state;
+    float yb=ya+rh;
+    glBindTexture(GL_TEXTURE_2D,id);
+    glPushMatrix();
+        glTranslatef(x,y,0.0);
+        glRotatef(angle,0.0,0.0,1.0);
+        glNormal3f(0.0,0.0,1.0);
+        glBegin(GL_QUADS);
+        glTexCoord2f(1.0,yb); glVertex3f(factorx*w/2,factory*h/2,0);
+        glTexCoord2f(1.0,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
+        glTexCoord2f(0.0,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
+        glTexCoord2f(0.0,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
+    glEnd();
+    glPopMatrix();
 }
+
+void StateSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"]@"<<state<<" state"<<endl; }
+
+AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : Sprite(id,w/nframe,h/nstate,name), nstate(nstate), rw(1./nframe), rh(1./nstate), state(0), nframe(nframe), repeat(nframe), pos(0.), speed(.1) {}
+
+void AnimatedSprite::draw() const {
+    float ya=rh*state;
+    float yb=ya+rh;
+    float xa=rw*int(pos);
+    float xb=xa+rw;
+    glBindTexture(GL_TEXTURE_2D,id);
+    glPushMatrix();
+        glTranslatef(x,y,0.0);
+        glRotatef(angle,0.0,0.0,1.0);
+        glNormal3f(0.0,0.0,1.0);
+        glBegin(GL_QUADS);
+        glTexCoord2f(xb,yb); glVertex3f(factorx*w/2,factory*h/2,0);
+        glTexCoord2f(xb,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
+        glTexCoord2f(xa,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
+        glTexCoord2f(xa,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
+    glEnd();
+    glPopMatrix();
+
+    const_cast<float&>(pos)+=speed;
+    if (pos>=repeat) const_cast<float&>(pos)-=repeat;
+}
+
+void AnimatedSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl; }
 
 //***********************************************************
 static SpriteManager *mSpriteManager=NULL;
@@ -113,7 +159,7 @@ SpriteManager::SpriteManager(size_t maxid) : maxid(maxid), currentid(0) {
 
 SpriteManager::~SpriteManager() {
     delete [] ids;
-    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) SDL_FreeSurface(i->second.second);
+    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) SDL_FreeSurface(i->second.surface);
 }
 
 void SpriteManager::load_directory(const std::string &directory) {
@@ -128,15 +174,18 @@ void SpriteManager::load_directory(const std::string &directory) {
         std::string filename(ent->d_name);
         if (filename=="." or filename=="..") continue;
 
-        try { load_image(prefix+filename); }
-        catch (Except e) { cerr<<"can't load "<<prefix<<filename<<endl; }
+        try { load_image(prefix+filename);
+        } catch (Except &e) {
+            if (e.n==Except::SS_SPRITE_LOADING_ERR) cerr<<"can't load "<<prefix<<filename<<endl;
+            else throw Except(e.n);
+        }
     }
 
     closedir(dir);
 }
 
 void SpriteManager::load_image(const std::string &filename) {
-    static const boost::regex e("(\\A|\\A.*/)(\\w+)\\.(png|jpg)\\Z");
+    static const boost::regex e("(\\A|\\A.*/)(\\w+)(-(\\d+)(x(\\d+))?)?\\.(png|jpg)\\Z");
     boost::smatch what;
     if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_LOADING_ERR);
     if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_DUPLICATE_ERR);
@@ -152,18 +201,41 @@ void SpriteManager::load_image(const std::string &filename) {
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 
-    idmap[what[2]]=std::make_pair(ids[currentid],surf);
+    if (what[3].matched and what[5].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str()),atoi(std::string(what[6]).c_str())); //animated with state
+    else if (what[3].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str())); //state
+    else idmap[what[2]]=Record(ids[currentid],surf);
     currentid++;
 }
 
 Sprite *SpriteManager::get_sprite(const std::string &name) const {
     IdMap::const_iterator match=idmap.find(name);
     if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR);
-    return new Sprite(match->second.first,match->second.second->w,match->second.second->h,match->first);
+
+    switch (match->second.type) {
+    case Record::STATIC:
+        return new Sprite(match->second.id,match->second.surface->w,match->second.surface->h,match->first); break;
+    case Record::STATE:
+        return new StateSprite(match->second.id,match->second.surface->w,match->second.surface->h,match->first,match->second.nstate); break;
+    case Record::ANIMATED:
+        return new AnimatedSprite(match->second.id,match->second.surface->w,match->second.surface->h,match->first,match->second.nstate,match->second.nframe); break;
+    }
+
+
 }
 
 void SpriteManager::dump(std::ostream &os) const {
     os<<currentid<<"/"<<maxid<<" sprites"<<endl;
-    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) os<<"* "<<i->first<<"\tid="<<i->second.first<<" size="<<i->second.second->w<<"x"<<i->second.second->h<<endl;
+    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) {
+        os<<"* "<<i->first<<" id="<<i->second.id<<" size="<<i->second.surface->w<<"x"<<i->second.surface->h<<" ";
+        switch (i->second.type) {
+        case Record::STATIC:
+            os<<"static"; break;
+        case Record::STATE:
+            os<<"state "<<i->second.nstate; break;
+        case Record::ANIMATED:
+            os<<"animated "<<i->second.nstate<<"x"<<i->second.nframe; break;
+        }
+        os<<endl;
+    }
 }
 
