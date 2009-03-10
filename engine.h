@@ -7,20 +7,37 @@
 #include <iostream>
 #include <SDL/SDL_image.h>
 
+class Listener {
+public:
+    virtual bool key_down(SDLKey key) { return true; };
+    virtual bool key_up(SDLKey key) { return true; };
+    virtual bool mouse_down(Uint8 button,float x,float y) { return true; };
+    virtual bool mouse_up(Uint8 button,float x,float y) { return true; };
+    virtual bool frame_entered(Uint32 ticks)=0;
+
+    virtual void register_self() {};
+    virtual void unregister_self() {};
+};
+
+
 class SdlManager {
 public:
     static SdlManager *get();
     static void free();
     static void init(int w=800,int h=600, int d=32);
 
-    void clear();
-    void swap();
-    void wait();
+    void main_loop();
+    void register_listener(Listener *listener);
+    void unregister_listener(Listener *listener);
 protected:
+    typedef std::list<Listener*> Listeners;
+
     SdlManager(int w,int h,int d);
     ~SdlManager();
 
     SDL_Surface *screen;
+    Listeners listeners;
+    bool in_main_loop;
 };
 
 //***********************************************************
@@ -66,8 +83,6 @@ public:
 
     const float rh,rw;
 };
-
-typedef std::list<Sprite*> Sprites;
 
 //***********************************************************
 class SpriteManager {

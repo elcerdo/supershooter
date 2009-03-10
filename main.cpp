@@ -1,31 +1,56 @@
 #include "engine.h"
 #include "except.h"
+#include <list>
 #include <iostream>
 using std::cout;
 using std::endl;
 
-class Listener {
+class Logger : public Listener {
 public:
-    Listener() : quit(false) {}
-    void update() {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-            case SDL_KEYDOWN:
-                if (event.key.keysym.sym==SDLK_ESCAPE) quit=true; //quit game
-                if (event.key.keysym.sym==SDLK_SPACE) quit=true;
-                break;
-            case SDL_QUIT:      
-                quit=true;
-                break;
-            default:
-                break;
-            }
+    Logger() : frame(0), update_ticks(0) {}
+    virtual bool key_down(SDLKey key) { cout<<"key down"<<endl; return true; };
+    virtual bool key_up(SDLKey key) { cout<<"key up"<<endl; return true; };
+    virtual bool mouse_down(Uint8 button,float x,float y) { cout<<"mouse down"<<endl; return true; };
+    virtual bool mouse_up(Uint8 button,float x,float y) {  cout<<"mouse up"<<endl; return true; };
+    virtual bool frame_entered(Uint32 ticks) {
+        frame++;
+        if (ticks>update_ticks+5000) {
+            cout<<1000.*static_cast<float>(frame)/(ticks-update_ticks)<<"fps"<<endl;
+            frame=0;
+            update_ticks=ticks;
         }
+        return true;
     }
-    bool quit;
+
+    virtual void register_self() { frame=0; cout<<"registered"<<endl; };
+    virtual void unregister_self() { frame=0; cout<<"unregistered"<<endl; };
 protected:
+    int frame;
+    Uint32 update_ticks;
 };
+
+class Spawner : public Listener {
+public:
+    virtual bool mouse_down(Uint8 button,float x,float y) {
+        Sprite *s=SpriteManager::get()->get_sprite("bullet");
+        s->x=x;
+        s->y=y;
+        sprites.push_back(s);
+        return true;
+    }
+    virtual bool frame_entered(Uint32 ticks) {
+        for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->draw();
+        return true;
+    }
+    virtual void unregisted() {
+        while (not sprites.empty()) { delete sprites.back(); sprites.pop_back(); }
+    }
+protected:
+    typedef std::list<Sprite*> Sprites;
+    Sprites sprites;
+};
+
+
 
 int main() {
     try {
@@ -35,43 +60,16 @@ int main() {
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump(cout);
 
-        Sprite *aa=SpriteManager::get()->get_sprite("logo");
-        aa->y=100;
-        aa->dump(cout);
+        Spawner spawner;
+        Logger logger;
 
-        Sprite *bb=SpriteManager::get()->get_sprite("font");
-        bb->x=150;
-        bb->y=150;
-        dynamic_cast<StateSprite*>(bb)->state=1;
-        bb->dump(cout);
+        SdlManager::get()->register_listener(&logger);
+        SdlManager::get()->register_listener(&spawner);
+        SdlManager::get()->main_loop();
 
-        Sprite *cc=SpriteManager::get()->get_sprite("bullet");
-        cc->x=150;
-        cc->y=200;
-        dynamic_cast<AnimatedSprite*>(cc)->speed=0.2;
-        cc->dump(cout);
+        SdlManager::get()->unregister_listener(&logger);
+        SdlManager::get()->main_loop();
 
-        Listener listener;
-        while (not listener.quit) {
-            SdlManager::get()->clear();
-
-            aa->draw();
-            bb->draw();
-            cc->draw();
-
-            SdlManager::get()->swap();
-
-            listener.update();
-
-            aa->x+=1.3;
-            if (aa->x>800) aa->x=-30;
-
-            SdlManager::get()->wait();
-        }
-
-        delete aa;
-        delete bb;
-        delete cc;
         SdlManager::free();
         SpriteManager::free();
     } catch (Except e) {

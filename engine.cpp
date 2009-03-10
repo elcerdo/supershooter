@@ -8,9 +8,9 @@
 #include <fstream>
 #include <dirent.h>
 #include "except.h"
-using std::cout;
 using std::endl;
 using std::cerr;
+using std::cout;
 
 static SdlManager *mSdlManager=NULL;
 
@@ -27,7 +27,7 @@ void SdlManager::init(int w,int h,int d) {
     mSdlManager=new SdlManager(w,h,d);
 }
 
-SdlManager::SdlManager(int w,int h,int d) {
+SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false) {
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_OPENGL)) { cerr<<"cannot initialize sdl..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
     screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
@@ -56,17 +56,65 @@ SdlManager::~SdlManager() {
     SDL_Quit();
 }
 
-void SdlManager::clear() {
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+void SdlManager::register_listener(Listener *listener) { //FIXME duplicate
+    if (in_main_loop) listener->register_self();
+    listeners.push_back(listener);
 }
 
-void SdlManager::swap() {
-    SDL_GL_SwapBuffers();  
-    SDL_Flip(screen);
+void SdlManager::unregister_listener(Listener *listener) { //FIXME existance
+    listeners.remove(listener);
+    if (in_main_loop) listener->unregister_self();
 }
 
-void SdlManager::wait() {
-    SDL_Delay(10);
+void SdlManager::main_loop() {
+    in_main_loop=true;
+
+    for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end(); i++) (*i)->register_self();
+
+    bool quit=false;
+    while (not quit and not listeners.empty()) {
+        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+        SDL_Event event;
+        while (SDL_PollEvent(&event) and not quit) {
+            switch (event.type) {
+            case SDL_KEYDOWN:
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->key_down(event.key.keysym.sym);
+                break;
+            case SDL_KEYUP:
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->key_up(event.key.keysym.sym);
+                break;
+            case SDL_MOUSEBUTTONDOWN:
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_down(event.button.button,event.button.x,event.button.y);
+                break;
+            case SDL_MOUSEBUTTONUP:
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_up(event.button.button,event.button.x,event.button.y);
+                break;
+            case SDL_QUIT:      
+                quit=true;
+                break;
+            case SDL_MOUSEMOTION:
+            case SDL_ACTIVEEVENT:
+            case SDL_VIDEOEXPOSE:
+                break;
+            default:
+                cout<<"unhandled event "<<static_cast<int>(event.type)<<endl;
+                break;
+            }
+        }
+
+        Uint32 ticks=SDL_GetTicks();
+        for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->frame_entered(ticks);
+
+        SDL_GL_SwapBuffers();  
+        SDL_Flip(screen);
+
+        SDL_Delay(10);
+    }
+
+    for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end(); i++) (*i)->unregister_self();
+
+    in_main_loop=false;
 }
 
 //***********************************************************
