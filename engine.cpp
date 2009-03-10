@@ -129,7 +129,7 @@ void SpriteManager::load_directory(const std::string &directory) {
         if (filename=="." or filename=="..") continue;
 
         try { load_image(prefix+filename); }
-        catch (Except e) {}
+        catch (Except e) { cerr<<"can't load "<<prefix<<filename<<endl; }
     }
 
     closedir(dir);
@@ -144,7 +144,7 @@ void SpriteManager::load_image(const std::string &filename) {
     if (currentid>=maxid-1) throw Except(Except::SS_SPRITE_TOO_MANY_ERR);
 
     SDL_Surface *surf=IMG_Load(filename.c_str());
-    if (not surf) { cerr<<"error loading '"<<filename<<"': "<<IMG_GetError()<<endl; throw Except(Except::SS_SPRITE_LOADING_ERR); }
+    if (not surf) throw Except(Except::SS_SPRITE_LOADING_ERR);
 
     if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR); }
     glBindTexture(GL_TEXTURE_2D,ids[currentid]);
