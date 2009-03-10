@@ -8,6 +8,7 @@ using std::endl;
 class Logger : public Listener {
 public:
     Logger() : frame(0), update_ticks(0) {}
+protected:
     virtual bool key_down(SDLKey key) { cout<<"key down"<<endl; return true; };
     virtual bool key_up(SDLKey key) { cout<<"key up"<<endl; return true; };
     virtual bool mouse_down(Uint8 button,float x,float y) { cout<<"mouse down"<<endl; return true; };
@@ -24,13 +25,14 @@ public:
 
     virtual void register_self() { frame=0; cout<<"registered"<<endl; };
     virtual void unregister_self() { frame=0; cout<<"unregistered"<<endl; };
-protected:
     int frame;
     Uint32 update_ticks;
 };
 
 class Spawner : public Listener {
 public:
+    ~Spawner() { unregister_self(); }
+protected:
     virtual bool mouse_down(Uint8 button,float x,float y) {
         Sprite *s=SpriteManager::get()->get_sprite("bullet");
         s->x=x;
@@ -42,10 +44,9 @@ public:
         for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->draw();
         return true;
     }
-    virtual void unregisted() {
+    virtual void unregister_self() {
         while (not sprites.empty()) { delete sprites.back(); sprites.pop_back(); }
     }
-protected:
     typedef std::list<Sprite*> Sprites;
     Sprites sprites;
 };

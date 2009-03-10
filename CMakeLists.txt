@@ -5,12 +5,16 @@ find_package(SDL REQUIRED)
 find_package(SDL_image REQUIRED)
 find_package(OpenGL REQUIRED)
 
-add_executable(supershooter
+add_library(zizi
     engine.cpp
-    except.cpp
-    main.cpp)
-target_link_libraries(supershooter
+    except.cpp)
+target_link_libraries(zizi
     boost_regex
     ${SDL_LIBRARY}
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
+
+add_executable(supershooter
+    main.cpp)
+target_link_libraries(supershooter
+    zizi)

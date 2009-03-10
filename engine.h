@@ -8,7 +8,8 @@
 #include <SDL/SDL_image.h>
 
 class Listener {
-public:
+friend class SdlManager;
+protected:
     virtual bool key_down(SDLKey key) { return true; };
     virtual bool key_up(SDLKey key) { return true; };
     virtual bool mouse_down(Uint8 button,float x,float y) { return true; };
