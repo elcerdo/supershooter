@@ -2,14 +2,15 @@
 
 #include <SDL/SDL.h>
 #include <GL/gl.h>
-#include <iostream>
 #include <cassert>
 #include <utility>
 #include <boost/regex.hpp>
+#include <fstream>
+#include <dirent.h>
 #include "except.h"
+using std::cout;
 using std::endl;
 using std::cerr;
-using std::cout;
 
 static SdlManager *mSdlManager=NULL;
 
@@ -69,7 +70,7 @@ void SdlManager::wait() {
 }
 
 //***********************************************************
-Sprite::Sprite(unsigned int id,double w,double h) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h) {}
+Sprite::Sprite(unsigned int id,double w,double h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name) {}
 void Sprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
@@ -83,6 +84,10 @@ void Sprite::draw() const {
         glTexCoord2f(0.0,1.0); glVertex3f(-factorx*w/2,factory*h/2,0);
     glEnd();
     glPopMatrix();
+}
+
+void Sprite::dump(std::ostream &os) const {
+    os<<name<<" ["<<x<<","<<y<<"] static"<<endl;
 }
 
 //***********************************************************
@@ -111,18 +116,37 @@ SpriteManager::~SpriteManager() {
     for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) SDL_FreeSurface(i->second.second);
 }
 
+void SpriteManager::load_directory(const std::string &directory) {
+    DIR *dir=opendir(directory.c_str());
+    if (not dir) return;
+
+    std::string prefix(directory);
+    if (prefix.size()>0 and prefix[prefix.size()-1]!='/') prefix+='/';
+
+    dirent *ent;
+    while (ent=readdir(dir)) {
+        std::string filename(ent->d_name);
+        if (filename=="." or filename=="..") continue;
+
+        try { load_image(prefix+filename); }
+        catch (Except e) {}
+    }
+
+    closedir(dir);
+}
+
 void SpriteManager::load_image(const std::string &filename) {
     static const boost::regex e("(\\A|\\A.*/)(\\w+)\\.(png|jpg)\\Z");
     boost::smatch what;
-    if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_ERR);
-    if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_ERR);
+    if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_LOADING_ERR);
+    if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_DUPLICATE_ERR);
 
-    if (currentid>=maxid-1) throw Except(Except::SS_TOO_MANY_SPRITES_ERR);
+    if (currentid>=maxid-1) throw Except(Except::SS_SPRITE_TOO_MANY_ERR);
 
     SDL_Surface *surf=IMG_Load(filename.c_str());
-    if (not surf) { cerr<<"error loading '"<<filename<<"': "<<IMG_GetError()<<endl; throw Except(Except::SS_LOADING_ERR); }
+    if (not surf) { cerr<<"error loading '"<<filename<<"': "<<IMG_GetError()<<endl; throw Except(Except::SS_SPRITE_LOADING_ERR); }
 
-    if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_CONVERSION_ERR); }
+    if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR); }
     glBindTexture(GL_TEXTURE_2D,ids[currentid]);
     glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
@@ -134,11 +158,12 @@ void SpriteManager::load_image(const std::string &filename) {
 
 Sprite *SpriteManager::get_sprite(const std::string &name) const {
     IdMap::const_iterator match=idmap.find(name);
-    if (match==idmap.end()) throw Except(Except::SS_SPRITE_ERR);
-    return new Sprite(match->second.first,match->second.second->w,match->second.second->h);
+    if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR);
+    return new Sprite(match->second.first,match->second.second->w,match->second.second->h,match->first);
 }
 
-void SpriteManager::dump() const {
-    cout<<currentid<<"/"<<maxid<<" sprites"<<endl;
-    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) cout<<i->first<<" "<<i->second.first<<" "<<i->second.second->w<<"x"<<i->second.second->h<<endl;
+void SpriteManager::dump(std::ostream &os) const {
+    os<<currentid<<"/"<<maxid<<" sprites"<<endl;
+    for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) os<<"* "<<i->first<<"\tid="<<i->second.first<<" size="<<i->second.second->w<<"x"<<i->second.second->h<<endl;
 }
+

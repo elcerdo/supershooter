@@ -1,5 +1,8 @@
 #include "engine.h"
 #include "except.h"
+#include <iostream>
+using std::cout;
+using std::endl;
 
 class Listener {
 public:
@@ -29,14 +32,10 @@ int main() {
         SdlManager::init();
         SpriteManager::init();
 
-        SpriteManager::get()->load_image("logo.png");
-        SpriteManager::get()->load_image("../aa.png");
+        SpriteManager::get()->load_directory("data");
+        SpriteManager::get()->dump(cout);
+
         Sprite *aa=SpriteManager::get()->get_sprite("aa");
-
-        Sprites sprites;
-
-        SpriteManager::get()->dump();
-
         Listener listener;
         while (not listener.quit) {
             SdlManager::get()->clear();

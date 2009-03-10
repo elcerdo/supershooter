@@ -4,10 +4,11 @@
 struct Except {
     enum ExceptType {
         SS_INIT_ERR,
-        SS_LOADING_ERR,
-        SS_TOO_MANY_SPRITES_ERR,
-        SS_CONVERSION_ERR,
-        SS_SPRITE_ERR,
+        SS_SPRITE_LOADING_ERR,
+        SS_SPRITE_TOO_MANY_ERR,
+        SS_SPRITE_CONVERSION_ERR,
+        SS_SPRITE_UNKNOWN_ERR,
+        SS_SPRITE_DUPLICATE_ERR,
     };
     Except(ExceptType n) : n(n) {};
     ExceptType n;

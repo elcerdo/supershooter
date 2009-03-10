@@ -5,6 +5,7 @@
 #include <list>
 #include <string>
 #include <utility>
+#include <iostream>
 #include <SDL/SDL_image.h>
 
 class SdlManager {
@@ -26,10 +27,13 @@ protected:
 //***********************************************************
 class Sprite {
 public:
-    Sprite(unsigned int id,double w,double h);
+    Sprite(unsigned int id,double w,double h,const std::string &name);
+
+    virtual void dump(std::ostream &os) const;
     virtual void draw() const;
     float x,y,angle,factorx,factory;
 protected:
+    std::string name;
     unsigned int id;
     float w,h;
 };
@@ -43,8 +47,9 @@ public:
     static void free();
     static void init(size_t maxid=256);
 
+    void dump(std::ostream &os) const;
     void load_image(const std::string &filename);
-    void dump() const;
+    void load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;
 protected:
     SpriteManager(size_t maxid);
