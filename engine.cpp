@@ -33,6 +33,8 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false) {
     screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
     if (not screen) { cerr<<"cannot create sdl screen..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
+    SDL_SetEventFilter(&event_filter);
+
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
 	glClearColor(1,1,0,1);
@@ -66,6 +68,11 @@ void SdlManager::unregister_listener(Listener *listener) { //FIXME existance
     if (in_main_loop) listener->unregister_self();
 }
 
+int SdlManager::event_filter(const SDL_Event *ev) {
+    if (ev->type==SDL_MOUSEMOTION or ev->type==SDL_ACTIVEEVENT or ev->type==SDL_VIDEOEXPOSE) return 0;
+    return 1;
+}
+
 void SdlManager::main_loop() {
     in_main_loop=true;
 
@@ -92,10 +99,6 @@ void SdlManager::main_loop() {
                 break;
             case SDL_QUIT:      
                 quit=true;
-                break;
-            case SDL_MOUSEMOTION:
-            case SDL_ACTIVEEVENT:
-            case SDL_VIDEOEXPOSE:
                 break;
             default:
                 cout<<"unhandled event "<<static_cast<int>(event.type)<<endl;

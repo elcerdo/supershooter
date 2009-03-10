@@ -36,6 +36,7 @@ protected:
     SdlManager(int w,int h,int d);
     ~SdlManager();
 
+    static int event_filter(const SDL_Event *ev);
     SDL_Surface *screen;
     Listeners listeners;
     bool in_main_loop;
