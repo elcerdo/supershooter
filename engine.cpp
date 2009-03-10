@@ -6,6 +6,7 @@
 #include <utility>
 #include <boost/regex.hpp>
 #include <fstream>
+#include <cmath>
 #include <dirent.h>
 #include "except.h"
 using std::endl;
@@ -14,20 +15,14 @@ using std::cout;
 
 static SdlManager *mSdlManager=NULL;
 
-SdlManager *SdlManager::get() {
-    return mSdlManager;
-}
-
-void SdlManager::free() {
-    if (mSdlManager) { delete mSdlManager; mSdlManager=NULL; }
-}
-
+SdlManager *SdlManager::get() { return mSdlManager; }
+void SdlManager::free() { if (mSdlManager) { delete mSdlManager; mSdlManager=NULL; } }
 void SdlManager::init(int w,int h,int d) {
     if (mSdlManager) throw Except(Except::SS_INIT_ERR);
     mSdlManager=new SdlManager(w,h,d);
 }
 
-SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false) {
+SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h) {
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_OPENGL)) { cerr<<"cannot initialize sdl..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
     screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
@@ -112,7 +107,7 @@ void SdlManager::main_loop() {
         SDL_GL_SwapBuffers();  
         SDL_Flip(screen);
 
-        SDL_Delay(10);
+        SDL_Delay(5);
     }
 
     for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end(); i++) (*i)->unregister_self();
@@ -127,7 +122,7 @@ void Sprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
         glTranslatef(x,y,0.0);
-        glRotatef(angle,0.0,0.0,1.0);
+        glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
         glTexCoord2f(1.0,1.0); glVertex3f(factorx*w/2,factory*h/2,0);
@@ -148,7 +143,7 @@ void StateSprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
         glTranslatef(x,y,0.0);
-        glRotatef(angle,0.0,0.0,1.0);
+        glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
         glTexCoord2f(1.0,yb); glVertex3f(factorx*w/2,factory*h/2,0);
@@ -161,7 +156,7 @@ void StateSprite::draw() const {
 
 void StateSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"]@"<<state<<" state"<<endl; }
 
-AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : Sprite(id,w/nframe,h/nstate,name), nstate(nstate), rw(1./nframe), rh(1./nstate), state(0), nframe(nframe), repeat(nframe), pos(0.), speed(.1) {}
+AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : Sprite(id,w/nframe,h/nstate,name), nstate(nstate), rw(1./nframe), rh(1./nstate), state(0), nframe(nframe), repeat(nframe), pos(0.), speed(.05) {}
 
 void AnimatedSprite::draw() const {
     float ya=rh*state;
@@ -171,7 +166,7 @@ void AnimatedSprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
         glTranslatef(x,y,0.0);
-        glRotatef(angle,0.0,0.0,1.0);
+        glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
         glTexCoord2f(xb,yb); glVertex3f(factorx*w/2,factory*h/2,0);
@@ -190,14 +185,8 @@ void AnimatedSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"
 //***********************************************************
 static SpriteManager *mSpriteManager=NULL;
 
-SpriteManager *SpriteManager::get() {
-    return mSpriteManager;
-}
-
-void SpriteManager::free() {
-    if (mSpriteManager) { delete mSpriteManager; mSpriteManager=NULL; }
-}
-
+SpriteManager *SpriteManager::get() { return mSpriteManager; }
+void SpriteManager::free() { if (mSpriteManager) { delete mSpriteManager; mSpriteManager=NULL; } }
 void SpriteManager::init(size_t maxid) {
     if (mSpriteManager) throw Except(Except::SS_INIT_ERR);
     mSpriteManager=new SpriteManager(maxid);
@@ -249,8 +238,8 @@ void SpriteManager::load_image(const std::string &filename) {
     if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR); }
     glBindTexture(GL_TEXTURE_2D,ids[currentid]);
     glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
 
     if (what[3].matched and what[5].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str()),atoi(std::string(what[6]).c_str())); //animated with state
     else if (what[3].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str())); //state
@@ -260,7 +249,7 @@ void SpriteManager::load_image(const std::string &filename) {
 
 Sprite *SpriteManager::get_sprite(const std::string &name) const {
     IdMap::const_iterator match=idmap.find(name);
-    if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR);
+    if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
 
     switch (match->second.type) {
     case Record::STATIC:

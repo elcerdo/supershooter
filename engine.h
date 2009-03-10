@@ -30,6 +30,7 @@ public:
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
+    const float width,height;
 protected:
     typedef std::list<Listener*> Listeners;
 

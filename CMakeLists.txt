@@ -14,7 +14,13 @@ target_link_libraries(zizi
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
 
+add_executable(zizidemo
+    zizidemo.cpp)
+target_link_libraries(zizidemo
+    zizi)
+
 add_executable(supershooter
+    shoot.cpp
     main.cpp)
 target_link_libraries(supershooter
     zizi)
