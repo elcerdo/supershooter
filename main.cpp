@@ -7,14 +7,18 @@ public:
     BigShip() : tx(300), ty(300), angle(0), speed(0), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship01");
         body->z=-1;
+        body->factorx=2.;
+        body->factory=2.;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
-        turrel_left->x=-8;
-        turrel_left->y=10;
+        turrel_left->x=-16;
+        turrel_left->y=-8;
+        turrel_left->cx=10;
         turrel_left->z=1;
         turrel_left->angle=M_PI/180.*15;
         turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
-        turrel_right->x=-8;
-        turrel_right->y=-10;
+        turrel_right->x=-16;
+        turrel_right->y=8;
+        turrel_right->cx=10;
         turrel_right->z=1;
         turrel_right->angle=-M_PI/180.*15;
 
@@ -92,8 +96,8 @@ protected:
         bigship.speed-=bigship.speed*1.*dt;
 
         float turrel_angle=M_PI/180.*(45.+45.*cos(2*M_PI*.4*t));
-        bigship.turrel_left->angle=turrel_angle;
-        bigship.turrel_right->angle=-turrel_angle;
+        bigship.turrel_left->angle=-turrel_angle;
+        bigship.turrel_right->angle=turrel_angle;
 
         bigship.move(dt);
         bigship.draw();

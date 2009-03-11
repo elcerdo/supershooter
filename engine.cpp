@@ -124,7 +124,7 @@ void SdlManager::main_loop() {
 }
 
 //***********************************************************
-Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name), parent(NULL) {}
+Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), cx(0), cy(0), name(name), parent(NULL) {}
 
 Sprite::~Sprite() { while (not children.empty()) { delete children.back(); children.pop_back(); } }
 
@@ -135,13 +135,15 @@ Sprite *Sprite::create_child(const std::string &name) {
     return child;
 }
 
-void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle) const {
-    if (not parent) { ax=x; ay=y; aangle=angle; }
+void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const {
+    if (not parent) { ax=x; ay=y; aangle=angle; afactorx=factorx; afactory=factory; }
     else {
-        parent->absolute_coordinates(ax,ay,aangle);
-        ax+=x*cos(aangle)-y*sin(aangle);
-        ay+=x*sin(aangle)+y*cos(aangle);
+        parent->absolute_coordinates(ax,ay,aangle,afactorx,afactory);
+        ax+=afactorx*x*cos(aangle)-afactory*y*sin(aangle);
+        ay+=afactorx*x*sin(aangle)+afactory*y*cos(aangle);
         aangle+=angle;
+        afactorx*=factorx;
+        afactory*=factory;
     }
 }
 
@@ -151,11 +153,12 @@ void Sprite::draw() const {
         glTranslatef(x,y,0.0);
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
+        glScalef(factorx,factory,1);
         glBegin(GL_QUADS);
-        glTexCoord2f(1.0,1.0); glVertex3f(factorx*w/2,factory*h/2,z);
-        glTexCoord2f(1.0,0.0); glVertex3f(factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(0.0,0.0); glVertex3f(-factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(0.0,1.0); glVertex3f(-factorx*w/2,factory*h/2,z);
+        glTexCoord2f(1.0,1.0); glVertex3f(cx+w/2,cy+h/2,z);
+        glTexCoord2f(1.0,0.0); glVertex3f(cx+w/2,cy-h/2,z);
+        glTexCoord2f(0.0,0.0); glVertex3f(cx-w/2,cy-h/2,z);
+        glTexCoord2f(0.0,1.0); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
@@ -176,11 +179,12 @@ void StateSprite::draw() const {
         glTranslatef(x,y,0.0);
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
+        glScalef(factorx,factory,1);
         glBegin(GL_QUADS);
-        glTexCoord2f(1.0,yb); glVertex3f(factorx*w/2,factory*h/2,z);
-        glTexCoord2f(1.0,ya); glVertex3f(factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(0.0,ya); glVertex3f(-factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(0.0,yb); glVertex3f(-factorx*w/2,factory*h/2,z);
+        glTexCoord2f(1.0,yb); glVertex3f(cx+w/2,cy+h/2,z);
+        glTexCoord2f(1.0,ya); glVertex3f(cx+w/2,cy-h/2,z);
+        glTexCoord2f(0.0,ya); glVertex3f(cx-w/2,cy-h/2,z);
+        glTexCoord2f(0.0,yb); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
@@ -203,11 +207,12 @@ void AnimatedSprite::draw() const {
         glTranslatef(x,y,0.0);
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
+        glScalef(factorx,factory,1);
         glBegin(GL_QUADS);
-        glTexCoord2f(xb,yb); glVertex3f(factorx*w/2,factory*h/2,z);
-        glTexCoord2f(xb,ya); glVertex3f(factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(xa,ya); glVertex3f(-factorx*w/2,-factory*h/2,z);
-        glTexCoord2f(xa,yb); glVertex3f(-factorx*w/2,factory*h/2,z);
+        glTexCoord2f(xb,yb); glVertex3f(cx+w/2,cy+h/2,z);
+        glTexCoord2f(xb,ya); glVertex3f(cx+w/2,cy-h/2,z);
+        glTexCoord2f(xa,ya); glVertex3f(cx-w/2,cy-h/2,z);
+        glTexCoord2f(xa,yb); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();

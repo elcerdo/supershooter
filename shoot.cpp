@@ -40,8 +40,8 @@ void BulletManager::shoot(float x,float y,float angle, float speed,const std::st
 }
 
 void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float speed, const std::string &name) {
-    float ax,ay,aangle;
-    sprite->absolute_coordinates(ax,ay,aangle);
+    float ax,ay,aangle,afactorx,afactory;
+    sprite->absolute_coordinates(ax,ay,aangle,afactorx,afactory);
     shoot(ax,ay,aangle+rangle,speed,name);
 }
 

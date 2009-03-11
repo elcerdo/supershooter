@@ -57,11 +57,11 @@ public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     virtual void draw() const;
     Sprite *create_child(const std::string &name);
-    void absolute_coordinates(float &x,float &y,float &angle) const;
+    void absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const;
 
     virtual ~Sprite();
 
-    float x,y,z,angle,factorx,factory;
+    float x,y,z,angle,factorx,factory,cx,cy;
 protected:
     Sprite(unsigned int id,float w,float h,const std::string &name);
 
