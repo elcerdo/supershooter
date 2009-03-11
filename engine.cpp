@@ -116,7 +116,26 @@ void SdlManager::main_loop() {
 }
 
 //***********************************************************
-Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name) {}
+Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name), parent(NULL) {}
+
+Sprite::~Sprite() { while (not children.empty()) { delete children.back(); children.pop_back(); } }
+
+Sprite *Sprite::create_child(const std::string &name) {
+    Sprite *child=SpriteManager::get()->get_sprite(name);
+    child->parent=this;
+    children.push_back(child);
+    return child;
+}
+
+void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle) const {
+    if (not parent) { ax=x; ay=y; aangle=angle; }
+    else {
+        parent->absolute_coordinates(ax,ay,aangle);
+        ax+=x*cos(aangle)-y*sin(aangle);
+        ay+=x*sin(aangle)+y*cos(aangle);
+        aangle+=angle;
+    }
+}
 
 void Sprite::draw() const {
     glBindTexture(GL_TEXTURE_2D,id);
@@ -129,11 +148,15 @@ void Sprite::draw() const {
         glTexCoord2f(1.0,0.0); glVertex3f(factorx*w/2,-factory*h/2,0);
         glTexCoord2f(0.0,0.0); glVertex3f(-factorx*w/2,-factory*h/2,0);
         glTexCoord2f(0.0,1.0); glVertex3f(-factorx*w/2,factory*h/2,0);
-    glEnd();
+        glEnd();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
 }
 
-void Sprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"] static"<<endl; }
+void Sprite::dump(std::ostream &os,const std::string &indent) const {
+    os<<indent<<name<<" ["<<x<<","<<y<<"] static"<<endl;
+    for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
+}
 
 StateSprite::StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate) : Sprite(id,w,h/nstate,name), nstate(nstate), rh(1./nstate), state(0) {}
 
@@ -150,11 +173,15 @@ void StateSprite::draw() const {
         glTexCoord2f(1.0,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
         glTexCoord2f(0.0,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
         glTexCoord2f(0.0,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
-    glEnd();
+        glEnd();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
 }
 
-void StateSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"]@"<<state<<" state"<<endl; }
+void StateSprite::dump(std::ostream &os,const std::string &indent) const {
+    os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<" state"<<endl;
+    for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
+}
 
 AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : Sprite(id,w/nframe,h/nstate,name), nstate(nstate), rw(1./nframe), rh(1./nstate), state(0), nframe(nframe), repeat(nframe), pos(0.), speed(.05) {}
 
@@ -173,14 +200,18 @@ void AnimatedSprite::draw() const {
         glTexCoord2f(xb,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
         glTexCoord2f(xa,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
         glTexCoord2f(xa,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
-    glEnd();
+        glEnd();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
 
     const_cast<float&>(pos)+=speed;
     if (pos>=repeat) const_cast<float&>(pos)-=repeat;
 }
 
-void AnimatedSprite::dump(std::ostream &os) const { os<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl; }
+void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
+    os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl;
+    for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
+}
 
 //***********************************************************
 static SpriteManager *mSpriteManager=NULL;

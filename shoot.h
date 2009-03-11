@@ -19,6 +19,7 @@ public:
     static void init();
 
     void shoot(float x,float y,float angle, float speed);
+    void shoot_from_sprite(const Sprite *sprite,float rangle, float speed);
     void move(float dt);
     void draw() const;
 protected:

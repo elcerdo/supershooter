@@ -30,6 +30,12 @@ void BulletManager::shoot(float x,float y,float angle, float speed) {
     bullets.push_back(Bullet(sprite,angle,speed));
 }
 
+void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float speed) {
+    float ax,ay,aangle;
+    sprite->absolute_coordinates(ax,ay,aangle);
+    shoot(ax,ay,aangle+rangle,speed);
+}
+
 void BulletManager::move(float dt) { 
     for (Bullets::iterator i=bullets.begin(); i!=bullets.end(); i++) {
         i->move(dt);

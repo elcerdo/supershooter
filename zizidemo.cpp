@@ -33,11 +33,29 @@ class Spawner : public Listener {
 public:
     ~Spawner() { unregister_self(); }
 protected:
+    virtual bool key_down(SDLKey key) {
+        switch (key) {
+        case SDLK_SPACE:
+            cout<<"*****************************"<<endl;
+            for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->dump();
+            break;
+        case SDLK_ESCAPE:
+            return false; break;
+        }
+        return true;
+    }
     virtual bool mouse_down(Uint8 button,float x,float y) {
         Sprite *s=SpriteManager::get()->get_sprite("bullet");
         s->x=x;
         s->y=y;
         sprites.push_back(s);
+
+        Sprite *ca=s->create_child("bullet");
+        Sprite *cb=s->create_child("bullet");
+        ca->x=-16;
+        ca->y=+16;
+        cb->x=+16;
+        cb->y=-16;
         return true;
     }
     virtual bool frame_entered(Uint32 ticks) {

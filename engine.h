@@ -45,36 +45,46 @@ protected:
 
 //***********************************************************
 class Sprite {
+friend class SpriteManager;
 public:
-    Sprite(unsigned int id,float w,float h,const std::string &name);
-
-    virtual void dump(std::ostream &os) const;
+    virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     virtual void draw() const;
+    Sprite *create_child(const std::string &name);
+    void absolute_coordinates(float &x,float &y,float &angle) const;
+
+    virtual ~Sprite();
+
     float x,y,angle,factorx,factory;
 protected:
+    Sprite(unsigned int id,float w,float h,const std::string &name);
+
+    typedef std::list<Sprite*> Children;
+    Sprite *parent;
+    Children children;
+    
     std::string name;
     unsigned int id;
     float w,h;
 };
 
 class StateSprite : public Sprite {
+friend class SpriteManager;
 public:
-    StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate);
-
-    virtual void dump(std::ostream &os) const;
+    virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     virtual void draw() const;
 
     const unsigned int nstate;
     unsigned int state;
 
     const float rh;
+protected:
+    StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate);
 };
 
 class AnimatedSprite : public Sprite {
+friend class SpriteManager;
 public:
-    AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe);
-
-    virtual void dump(std::ostream &os) const;
+    virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     virtual void draw() const;
 
     const unsigned int nstate;
@@ -85,6 +95,8 @@ public:
     float pos,speed;
 
     const float rh,rw;
+protected:
+    AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe);
 };
 
 //***********************************************************
