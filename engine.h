@@ -5,16 +5,20 @@
 #include <list>
 #include <string>
 #include <iostream>
-#include <SDL/SDL_image.h>
+#include <SDL/SDL_keysym.h>
+
+//forward declaration
+union SDL_Event;
+struct SDL_Surface;
 
 class Listener {
 friend class SdlManager;
 protected:
     virtual bool key_down(SDLKey key) { return true; };
     virtual bool key_up(SDLKey key) { return true; };
-    virtual bool mouse_down(Uint8 button,float x,float y) { return true; };
-    virtual bool mouse_up(Uint8 button,float x,float y) { return true; };
-    virtual bool frame_entered(Uint32 ticks)=0;
+    virtual bool mouse_down(int button,float x,float y) { return true; };
+    virtual bool mouse_up(int button,float x,float y) { return true; };
+    virtual bool frame_entered(float t,float dt)=0;
 
     virtual void register_self() {};
     virtual void unregister_self() {};
@@ -26,6 +30,8 @@ public:
     static SdlManager *get();
     static void free();
     static void init(int w=800,int h=600, int d=32);
+
+    const unsigned char *get_key_state() const;
 
     void main_loop();
     void register_listener(Listener *listener);
@@ -41,6 +47,7 @@ protected:
     SDL_Surface *screen;
     Listeners listeners;
     bool in_main_loop;
+    long int old_ticks;
 };
 
 //***********************************************************
@@ -54,7 +61,7 @@ public:
 
     virtual ~Sprite();
 
-    float x,y,angle,factorx,factory;
+    float x,y,z,angle,factorx,factory;
 protected:
     Sprite(unsigned int id,float w,float h,const std::string &name);
 
@@ -106,7 +113,7 @@ public:
     static void free();
     static void init(size_t maxid=256);
 
-    void dump(std::ostream &os) const;
+    void dump(std::ostream &os=std::cout) const;
     void load_image(const std::string &filename);
     void load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;

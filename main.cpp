@@ -1,21 +1,21 @@
 #include "shoot.h"
 #include "except.h"
-#include <iostream>
 #include <cmath>
-using std::cout;
-using std::endl;
 
 class BigShip {
 public:
     BigShip() : tx(300), ty(300), angle(0), speed(0), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship01");
+        body->z=-1;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
         turrel_left->x=-8;
         turrel_left->y=10;
+        turrel_left->z=1;
         turrel_left->angle=M_PI/180.*15;
         turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
         turrel_right->x=-8;
         turrel_right->y=-10;
+        turrel_right->z=1;
         turrel_right->angle=-M_PI/180.*15;
 
         body->x=100;
@@ -61,7 +61,7 @@ protected:
     
 class Spawner : public Listener {
 public:
-    Spawner() : old_ticks(0) {}
+    Spawner() {}
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
@@ -80,33 +80,26 @@ protected:
         return true;
     }
 
-    virtual bool mouse_down(Uint8 button,float x,float y) {
+    virtual bool mouse_down(int button,float x,float y) {
         return true;
     }
-    virtual bool frame_entered(Uint32 ticks) {
-        float dt=(ticks-old_ticks)/1000.;
-        old_ticks=ticks;
-
-        Uint8 *state=SDL_GetKeyState(NULL);
+    virtual bool frame_entered(float t,float dt) {
+        const unsigned char *state=SdlManager::get()->get_key_state();
         if (state[SDLK_LEFT]) bigship.angle-=M_PI/180.*dt*180.;
         if (state[SDLK_RIGHT]) bigship.angle+=M_PI/180.*dt*180.;
         if (state[SDLK_UP]) bigship.speed+=dt*300.;
         if (state[SDLK_DOWN]) bigship.speed-=dt*300.;
         bigship.speed-=bigship.speed*1.*dt;
 
-        float turrel_angle=M_PI/180.*(45.+45.*cos(2*M_PI*.4*ticks/1000.));
+        float turrel_angle=M_PI/180.*(45.+45.*cos(2*M_PI*.4*t));
         bigship.turrel_left->angle=turrel_angle;
         bigship.turrel_right->angle=-turrel_angle;
 
         bigship.move(dt);
         bigship.draw();
 
-        BulletManager::get()->move(dt);
-        BulletManager::get()->draw();
-
         return true;
     }
-    Uint32 old_ticks;
     BigShip bigship;
 };
 
@@ -119,10 +112,13 @@ int main() {
         BulletManager::init();
 
         SpriteManager::get()->load_directory("data");
-        SpriteManager::get()->dump(std::cout);
+        SpriteManager::get()->dump();
 
         Spawner spawner;
+
+
         SdlManager::get()->register_listener(&spawner);
+        SdlManager::get()->register_listener(BulletManager::get());
         SdlManager::get()->main_loop();
 
         SdlManager::free();

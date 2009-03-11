@@ -7,6 +7,7 @@ find_package(OpenGL REQUIRED)
 
 add_library(zizi
     engine.cpp
+    shoot.cpp
     except.cpp)
 target_link_libraries(zizi
     boost_regex
@@ -20,7 +21,6 @@ target_link_libraries(zizidemo
     zizi)
 
 add_executable(supershooter
-    shoot.cpp
     main.cpp)
 target_link_libraries(supershooter
     zizi)

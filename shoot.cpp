@@ -19,21 +19,30 @@ void BulletManager::init() {
 
 BulletManager::BulletManager() {}
 
-BulletManager::~BulletManager() {
+BulletManager::~BulletManager() { unregister_self(); }
+
+void BulletManager::unregister_self() {
     while (not bullets.empty()) { delete bullets.back().sprite; bullets.pop_back(); }
 }
 
-void BulletManager::shoot(float x,float y,float angle, float speed) {
-    Sprite *sprite=SpriteManager::get()->get_sprite("bullet");
+bool BulletManager::frame_entered(float t,float dt) {
+    move(dt);
+    draw();
+    return true;
+}
+
+void BulletManager::shoot(float x,float y,float angle, float speed,const std::string &name) {
+    Sprite *sprite=SpriteManager::get()->get_sprite(name);
     sprite->x=x;
     sprite->y=y;
+    sprite->z;
     bullets.push_back(Bullet(sprite,angle,speed));
 }
 
-void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float speed) {
+void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float speed, const std::string &name) {
     float ax,ay,aangle;
     sprite->absolute_coordinates(ax,ay,aangle);
-    shoot(ax,ay,aangle+rangle,speed);
+    shoot(ax,ay,aangle+rangle,speed,name);
 }
 
 void BulletManager::move(float dt) { 

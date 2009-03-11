@@ -1,6 +1,7 @@
 #include "engine.h"
 
 #include <SDL/SDL.h>
+#include <SDL/SDL_image.h>
 #include <GL/gl.h>
 #include <cassert>
 #include <utility>
@@ -22,7 +23,7 @@ void SdlManager::init(int w,int h,int d) {
     mSdlManager=new SdlManager(w,h,d);
 }
 
-SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h) {
+SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h), old_ticks(0) {
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_OPENGL)) { cerr<<"cannot initialize sdl..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
     screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
@@ -32,21 +33,24 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
-	glClearColor(1,1,0,1);
-	glClearDepth(1);// Depth Buffer Setup
+	glClearColor(1,1,0,0);
 	glEnable(GL_DEPTH_TEST);// Enables Depth Testing
 	glDepthFunc(GL_LEQUAL);// The Type Of Depth Testing To Do
 	glEnable(GL_BLEND);//Alpha blending
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);// Really Nice Perspective Calculations
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_GREATER,0.5);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0,w,h,0,1.0,-1.0);
+	glOrtho(0,w,h,0,-10.0,10.0);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
+
+const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
 
 SdlManager::~SdlManager() {
     SDL_FreeSurface(screen);
@@ -73,6 +77,7 @@ void SdlManager::main_loop() {
 
     for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end(); i++) (*i)->register_self();
 
+    old_ticks=SDL_GetTicks();
     bool quit=false;
     while (not quit and not listeners.empty()) {
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -101,8 +106,11 @@ void SdlManager::main_loop() {
             }
         }
 
-        Uint32 ticks=SDL_GetTicks();
-        for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->frame_entered(ticks);
+        long int ticks=SDL_GetTicks();
+        float t=ticks/1000.;
+        float dt=(ticks-old_ticks)/1000.;
+        old_ticks=ticks;
+        for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->frame_entered(t,dt);
 
         SDL_GL_SwapBuffers();  
         SDL_Flip(screen);
@@ -116,7 +124,7 @@ void SdlManager::main_loop() {
 }
 
 //***********************************************************
-Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name), parent(NULL) {}
+Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), name(name), parent(NULL) {}
 
 Sprite::~Sprite() { while (not children.empty()) { delete children.back(); children.pop_back(); } }
 
@@ -144,10 +152,10 @@ void Sprite::draw() const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
-        glTexCoord2f(1.0,1.0); glVertex3f(factorx*w/2,factory*h/2,0);
-        glTexCoord2f(1.0,0.0); glVertex3f(factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(0.0,0.0); glVertex3f(-factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(0.0,1.0); glVertex3f(-factorx*w/2,factory*h/2,0);
+        glTexCoord2f(1.0,1.0); glVertex3f(factorx*w/2,factory*h/2,z);
+        glTexCoord2f(1.0,0.0); glVertex3f(factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(0.0,0.0); glVertex3f(-factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(0.0,1.0); glVertex3f(-factorx*w/2,factory*h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
@@ -169,10 +177,10 @@ void StateSprite::draw() const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
-        glTexCoord2f(1.0,yb); glVertex3f(factorx*w/2,factory*h/2,0);
-        glTexCoord2f(1.0,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(0.0,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(0.0,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
+        glTexCoord2f(1.0,yb); glVertex3f(factorx*w/2,factory*h/2,z);
+        glTexCoord2f(1.0,ya); glVertex3f(factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(0.0,ya); glVertex3f(-factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(0.0,yb); glVertex3f(-factorx*w/2,factory*h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
@@ -196,10 +204,10 @@ void AnimatedSprite::draw() const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glBegin(GL_QUADS);
-        glTexCoord2f(xb,yb); glVertex3f(factorx*w/2,factory*h/2,0);
-        glTexCoord2f(xb,ya); glVertex3f(factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(xa,ya); glVertex3f(-factorx*w/2,-factory*h/2,0);
-        glTexCoord2f(xa,yb); glVertex3f(-factorx*w/2,factory*h/2,0);
+        glTexCoord2f(xb,yb); glVertex3f(factorx*w/2,factory*h/2,z);
+        glTexCoord2f(xb,ya); glVertex3f(factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(xa,ya); glVertex3f(-factorx*w/2,-factory*h/2,z);
+        glTexCoord2f(xa,yb); glVertex3f(-factorx*w/2,factory*h/2,z);
         glEnd();
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
     glPopMatrix();
