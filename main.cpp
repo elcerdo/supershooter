@@ -72,7 +72,7 @@ protected:
     
 class Spawner : public Listener {
 public:
-    Spawner() : tx(0), ty(0) {
+    Spawner() : tx(50), ty(50) {
         test.x=&tx;
         test.y=&ty;
         test.w=100;
@@ -126,9 +126,6 @@ protected:
 
         bigship.move(dt);
         bigship.draw();
-
-        cout<<test.left()<<test.right()<<test.bottom()<<test.top();
-        CollisionManager::get()->resolve_collision();
 
         return true;
     }

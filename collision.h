@@ -9,6 +9,8 @@ struct Point {
     Point();
     Point(float *x,float *y);
     float *x,*y;
+
+    virtual ~Point() {}; //make it polymorphic
 };
 
 struct Area {

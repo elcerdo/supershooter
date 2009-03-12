@@ -3,7 +3,7 @@
 
 #include "engine.h"
 #include "collision.h"
-#include <list>
+#include <set>
 
 class BulletManager : public Listener {
 public:
@@ -30,7 +30,7 @@ protected:
         float vx,vy;
     };
 
-    typedef std::list<Bullet*> Bullets;
+    typedef std::set<Bullet*> Bullets;
     Bullets bullets;
 };
 
