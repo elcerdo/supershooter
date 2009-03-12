@@ -7,6 +7,7 @@ find_package(OpenGL REQUIRED)
 
 add_library(zizi
     engine.cpp
+    collision.cpp
     shoot.cpp
     except.cpp)
 target_link_libraries(zizi

@@ -25,6 +25,7 @@ protected:
 };
 
 
+//***********************************************************
 class SdlManager {
 public:
     static SdlManager *get();

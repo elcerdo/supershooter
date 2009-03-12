@@ -1,14 +1,17 @@
 #include "shoot.h"
 #include "except.h"
 #include <cmath>
+#include <iostream>
+using std::cout;
+using std::endl;
 
-class BigShip {
+class BigShip : public Area {
 public:
-    BigShip() : tx(300), ty(300), angle(0), speed(0), shooting(false), reload(0) {
+    BigShip() :  angle(0), speed(0), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship01");
         body->z=-1;
-        body->factorx=2.;
-        body->factory=2.;
+        //body->factorx=2.;
+        //body->factory=2.;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
         turrel_left->x=-16;
         turrel_left->y=-8;
@@ -24,20 +27,25 @@ public:
 
         body->x=100;
         body->y=100;
+        
+        x=&body->x;
+        y=&body->y;
+        w=100;
+        h=100;
     };
     ~BigShip() {
         delete body;
     }
 
     void move(float dt) {
-        body->x+=dt*speed*cos(angle);
-        body->y+=dt*speed*sin(angle);
+        *x+=dt*speed*cos(angle);
+        *y+=dt*speed*sin(angle);
         body->angle=angle;
 
         if (reload>0) reload-=dt;
 
         if (shooting and reload<=0) {
-            reload+=0.15;
+            reload+=0.05;
             BulletManager::get()->shoot_from_sprite(turrel_left,0,300);
             BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300);
             BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300);
@@ -54,7 +62,6 @@ public:
 
     bool shooting;
     float angle,speed;
-    float tx,ty;
 
     AnimatedSprite *turrel_left;
     AnimatedSprite *turrel_right;
@@ -65,7 +72,23 @@ protected:
     
 class Spawner : public Listener {
 public:
-    Spawner() {}
+    Spawner() : tx(0), ty(0) {
+        test.x=&tx;
+        test.y=&ty;
+        test.w=100;
+        test.h=100;
+        test1.x=&tx1;
+        test1.y=&ty1;
+        test1.w=300;
+        test1.h=200;
+
+        tx1=300;
+        ty1=300;
+
+        CollisionManager::get()->spaces[0].second.insert(&test);
+        CollisionManager::get()->spaces[0].second.insert(&test1);
+    }
+    ~Spawner() { CollisionManager::get()->spaces[0].second.erase(&test); }
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
@@ -85,6 +108,8 @@ protected:
     }
 
     virtual bool mouse_down(int button,float x,float y) {
+        tx=x;
+        ty=y;
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -102,9 +127,14 @@ protected:
         bigship.move(dt);
         bigship.draw();
 
+        cout<<test.left()<<test.right()<<test.bottom()<<test.top();
+        CollisionManager::get()->resolve_collision();
+
         return true;
     }
     BigShip bigship;
+    Area test,test1;
+    float tx,ty,tx1,ty1;
 };
 
 
@@ -113,21 +143,22 @@ int main() {
     try {
         SdlManager::init();
         SpriteManager::init();
+        CollisionManager::init();
         BulletManager::init();
 
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump();
 
-        Spawner spawner;
-
-
-        SdlManager::get()->register_listener(&spawner);
         SdlManager::get()->register_listener(BulletManager::get());
-        SdlManager::get()->main_loop();
-
-        SdlManager::free();
-        SpriteManager::free();
+        {
+            Spawner spawner;
+            SdlManager::get()->register_listener(&spawner);
+            SdlManager::get()->main_loop();
+        }
         BulletManager::free();
+        CollisionManager::free();
+        SpriteManager::free();
+        SdlManager::free();
     } catch (Except e) {
         e.dump();
     }

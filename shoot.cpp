@@ -1,11 +1,12 @@
 #include "shoot.h"
 
 #include <cmath>
+#include "collision.h"
 #include "except.h"
 
-Bullet::Bullet(Sprite *sprite,float angle,float speed) : sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)) {}
-void Bullet::move(float dt) { sprite->x+=dt*vx; sprite->y+=dt*vy; }
-
+BulletManager::Bullet::Bullet(Sprite *sprite,float angle,float speed) : Point(&sprite->x,&sprite->y), sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)) {}
+BulletManager::Bullet::~Bullet() { delete sprite; }
+void BulletManager::Bullet::move(float dt) { *x+=dt*vx; *y+=dt*vy; }
 
 //***********************************************************
 static BulletManager *mBulletManager=NULL;
@@ -22,7 +23,7 @@ BulletManager::BulletManager() {}
 BulletManager::~BulletManager() { unregister_self(); }
 
 void BulletManager::unregister_self() {
-    while (not bullets.empty()) { delete bullets.back().sprite; bullets.pop_back(); }
+    while (not bullets.empty()) { delete bullets.back(); bullets.pop_back(); }
 }
 
 bool BulletManager::frame_entered(float t,float dt) {
@@ -35,8 +36,9 @@ void BulletManager::shoot(float x,float y,float angle, float speed,const std::st
     Sprite *sprite=SpriteManager::get()->get_sprite(name);
     sprite->x=x;
     sprite->y=y;
-    sprite->z;
-    bullets.push_back(Bullet(sprite,angle,speed));
+    Bullet *bullet=new Bullet(sprite,angle,speed);
+    bullets.push_back(bullet);
+    CollisionManager::get()->spaces[0].first.insert(bullet);
 }
 
 void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float speed, const std::string &name) {
@@ -47,13 +49,15 @@ void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle, float s
 
 void BulletManager::move(float dt) { 
     for (Bullets::iterator i=bullets.begin(); i!=bullets.end(); i++) {
-        i->move(dt);
-        if (i->sprite->x<-20 or i->sprite->x>SdlManager::get()->width+20 or i->sprite->y<-20 or i->sprite->y>SdlManager::get()->height+20) {
-            delete i->sprite;
+        Bullet *bullet=*i;
+        bullet->move(dt);
+        if (bullet->sprite->x<-20 or bullet->sprite->x>SdlManager::get()->width+20 or bullet->sprite->y<-20 or bullet->sprite->y>SdlManager::get()->height+20) {
+            delete bullet;
             i=bullets.erase(i);
+            CollisionManager::get()->spaces[0].first.erase(bullet);
         }
     }
 }
 
-void BulletManager::draw() const { for (Bullets::const_iterator i=bullets.begin(); i!=bullets.end(); i++) i->sprite->draw(); }
+void BulletManager::draw() const { for (Bullets::const_iterator i=bullets.begin(); i!=bullets.end(); i++) (*i)->sprite->draw(); }
 

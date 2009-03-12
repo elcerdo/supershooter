@@ -2,16 +2,9 @@
 #define __SHOOT_H__
 
 #include "engine.h"
+#include "collision.h"
 #include <list>
 
-struct Bullet {
-    Bullet(Sprite *sprite,float angle,float speed);
-    void move(float dt);
-    Sprite *sprite;
-    float vx,vy;
-};
-
-//***********************************************************
 class BulletManager : public Listener {
 public:
     static BulletManager *get();
@@ -29,7 +22,15 @@ protected:
     virtual bool frame_entered(float t,float dt);
     virtual void unregister_self();
 
-    typedef std::list<Bullet> Bullets;
+    struct Bullet : public Point {
+        Bullet(Sprite *sprite,float angle,float speed);
+        ~Bullet();
+        void move(float dt);
+        Sprite *sprite;
+        float vx,vy;
+    };
+
+    typedef std::list<Bullet*> Bullets;
     Bullets bullets;
 };
 
