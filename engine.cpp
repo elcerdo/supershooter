@@ -33,7 +33,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
-	glClearColor(1,1,0,0);
+	glClearColor(0,0,0,0);
 	glEnable(GL_DEPTH_TEST);// Enables Depth Testing
 	glDepthFunc(GL_LEQUAL);// The Type Of Depth Testing To Do
 	glEnable(GL_BLEND);//Alpha blending
@@ -51,6 +51,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 }
 
 const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
+void SdlManager::set_background_color(float r,float g,float b) { glClearColor(r,g,b,0); }
 
 SdlManager::~SdlManager() {
     SDL_FreeSurface(screen);

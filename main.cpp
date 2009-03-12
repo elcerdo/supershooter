@@ -8,17 +8,17 @@ using std::endl;
 class BigShip : public Area {
 public:
     BigShip() :  angle(0), speed(0), shooting(false), reload(0) {
-        body=SpriteManager::get()->get_sprite("bigship01");
+        body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
         //body->factory=2.;
-        turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
+        turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
         turrel_left->x=-16;
         turrel_left->y=-8;
         turrel_left->cx=10;
         turrel_left->z=1;
         turrel_left->angle=M_PI/180.*15;
-        turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turrel"));
+        turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
         turrel_right->x=-16;
         turrel_right->y=8;
         turrel_right->cx=10;
@@ -147,6 +147,7 @@ int main() {
         SpriteManager::get()->dump();
 
         SdlManager::get()->register_listener(BulletManager::get());
+        SdlManager::get()->set_background_color(.5,.6,.7);
         {
             Spawner spawner;
             SdlManager::get()->register_listener(&spawner);

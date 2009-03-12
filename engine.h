@@ -37,6 +37,7 @@ public:
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
+    void set_background_color(float r,float g,float b);
     const float width,height;
 protected:
     typedef std::list<Listener*> Listeners;

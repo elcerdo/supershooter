@@ -12,8 +12,8 @@ public:
     static void free();
     static void init(size_t nspace=2);
 
-    void shoot(float x,float y,float angle, float speed, size_t kspace=0, const std::string &name="bullet");
-    void shoot_from_sprite(const Sprite *sprite,float rangle, float speed, size_t kspace=0, const std::string &name="bullet");
+    void shoot(float x,float y,float angle, float speed, size_t kspace=0, const std::string &name="bullet00");
+    void shoot_from_sprite(const Sprite *sprite,float rangle, float speed, size_t kspace=0, const std::string &name="bullet00");
     void move(float dt);
     void draw() const;
 protected:

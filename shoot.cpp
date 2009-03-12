@@ -26,6 +26,8 @@ BulletManager::BulletManager(size_t nspace) : spaces(nspace), ncreated(0), ndest
 BulletManager::~BulletManager() {
     unregister_self();
     cout<<ncreated<<" bullets created, "<<ndestroyed<<" bullets destroyed"<<endl;
+    if (ncreated==ndestroyed) cout<<"no leak detected"<<endl;
+    else cout<<"leak detected"<<endl;
 }
 
 void BulletManager::unregister_self() {
