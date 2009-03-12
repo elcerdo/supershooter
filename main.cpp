@@ -5,9 +5,29 @@
 using std::cout;
 using std::endl;
 
-class BigShip : public Area {
+class StaticShip : public Ship {
 public:
-    BigShip() :  angle(0), speed(0), shooting(false), reload(0) {
+    StaticShip(Sprite *body,float ix,float iy) : Ship(body,100) {
+        *x=ix;
+        *y=iy;
+    }
+    void move(float dt) {}
+};
+
+class StaticArea : public Area {
+public:
+    StaticArea(Sprite *sprite) : Area(&sprite->x,&sprite->y), sprite(sprite) { w=sprite->w; h=sprite->h; }
+    ~StaticArea() { delete sprite; }
+
+    void draw() const { sprite->draw(); }
+protected:
+    Sprite *sprite;
+};
+
+
+class BigShip : public Ship {
+public:
+    BigShip() : Ship(100), angle(0), speed(0), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
@@ -33,11 +53,8 @@ public:
         w=100;
         h=100;
     };
-    ~BigShip() {
-        delete body;
-    }
 
-    void move(float dt) {
+    virtual void move(float dt) {
         *x+=dt*speed*cos(angle);
         *y+=dt*speed*sin(angle);
         body->angle=angle;
@@ -46,19 +63,17 @@ public:
 
         if (shooting and reload<=0) {
             reload+=0.05;
-            BulletManager::get()->shoot_from_sprite(turrel_left,0,300);
-            BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300);
-            BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300);
-            BulletManager::get()->shoot_from_sprite(turrel_right,0,300);
-            BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,300);
-            BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,300);
+            BulletManager::get()->shoot_from_sprite(turrel_left,0,300,0);
+            BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300,0);
+            BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300,0);
+            BulletManager::get()->shoot_from_sprite(turrel_right,0,300,0);
+            BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,300,0);
+            BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,300,0);
         }
 
         if (shooting) { turrel_left->state=1; turrel_right->state=1; }
         else { turrel_left->state=0; turrel_right->state=0; }
     }
-
-    void draw() const { body->draw(); }
 
     bool shooting;
     float angle,speed;
@@ -67,33 +82,25 @@ public:
     AnimatedSprite *turrel_right;
 protected:
     float reload;
-    Sprite *body;
 };
     
 class Spawner : public Listener {
 public:
-    Spawner() : tx(50), ty(50) {
-        test.x=&tx;
-        test.y=&ty;
-        test.w=100;
-        test.h=100;
-        test1.x=&tx1;
-        test1.y=&ty1;
-        test1.w=300;
-        test1.h=200;
-
-        tx1=300;
-        ty1=300;
-
-        CollisionManager::get()->spaces[0].second.insert(&test);
-        CollisionManager::get()->spaces[0].second.insert(&test1);
+    Spawner() {
+        test=new StaticArea(SpriteManager::get()->get_sprite("aa"));
+        *test->x=200;
+        *test->y=200;
+        CollisionManager::get()->spaces[0].second.insert(test);
     }
-    ~Spawner() { CollisionManager::get()->spaces[0].second.erase(&test); }
+    ~Spawner() {
+        CollisionManager::get()->spaces[0].second.erase(test);
+        delete test;
+    }
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_SPACE:
-            bigship.shooting=not bigship.shooting; break;
+            bigship->shooting=not bigship->shooting; break;
         case SDLK_ESCAPE:
             return false; break;
         }
@@ -108,30 +115,35 @@ protected:
     }
 
     virtual bool mouse_down(int button,float x,float y) {
-        tx=x;
-        ty=y;
+        *test->x=x;
+        *test->y=y;
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
         const unsigned char *state=SdlManager::get()->get_key_state();
-        if (state[SDLK_LEFT]) bigship.angle-=M_PI/180.*dt*180.;
-        if (state[SDLK_RIGHT]) bigship.angle+=M_PI/180.*dt*180.;
-        if (state[SDLK_UP]) bigship.speed+=dt*300.;
-        if (state[SDLK_DOWN]) bigship.speed-=dt*300.;
-        bigship.speed-=bigship.speed*1.*dt;
+        if (state[SDLK_LEFT]) bigship->angle-=M_PI/180.*dt*180.;
+        if (state[SDLK_RIGHT]) bigship->angle+=M_PI/180.*dt*180.;
+        if (state[SDLK_UP]) bigship->speed+=dt*300.;
+        if (state[SDLK_DOWN]) bigship->speed-=dt*300.;
+        bigship->speed-=bigship->speed*1.*dt;
 
         float turrel_angle=M_PI/180.*(45.+45.*cos(2*M_PI*.4*t));
-        bigship.turrel_left->angle=-turrel_angle;
-        bigship.turrel_right->angle=turrel_angle;
+        bigship->turrel_left->angle=-turrel_angle;
+        bigship->turrel_right->angle=turrel_angle;
 
-        bigship.move(dt);
-        bigship.draw();
+        test->draw();
 
         return true;
     }
-    BigShip bigship;
-    Area test,test1;
-    float tx,ty,tx1,ty1;
+
+    virtual void register_self() {
+        bigship=new BigShip;
+        ShipManager::get()->add_ship(bigship,1);
+        ShipManager::get()->add_ship(new StaticShip(SpriteManager::get()->get_sprite("font"),30,500),0);
+    }
+
+    BigShip *bigship;
+    StaticArea *test;
 };
 
 
@@ -142,17 +154,20 @@ int main() {
         SpriteManager::init();
         CollisionManager::init();
         BulletManager::init();
+        ShipManager::init();
 
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump();
 
         SdlManager::get()->register_listener(BulletManager::get());
+        SdlManager::get()->register_listener(ShipManager::get());
         SdlManager::get()->set_background_color(.5,.6,.7);
         {
             Spawner spawner;
             SdlManager::get()->register_listener(&spawner);
             SdlManager::get()->main_loop();
         }
+        ShipManager::free();
         BulletManager::free();
         CollisionManager::free();
         SpriteManager::free();

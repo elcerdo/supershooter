@@ -4,6 +4,7 @@
 #include <set>
 #include <vector>
 #include <utility>
+#include <iostream>
 
 struct Point {
     Point();
@@ -25,6 +26,8 @@ struct Area {
     typedef std::set<Point*> Points;
     Points colliding_x,colliding_y,colliding;
     float *x,*y,w,h;
+
+    virtual ~Area() {}
 };
 
 //***********************************************************
@@ -33,6 +36,7 @@ public:
     static CollisionManager *get();
     static void free();
     static void init(size_t nspace=2);
+    void dump(std::ostream &os=std::cout) const;
 
     void resolve_collision();
     typedef std::set<Point*> Points;

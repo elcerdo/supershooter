@@ -64,6 +64,7 @@ public:
     virtual ~Sprite();
 
     float x,y,z,angle,factorx,factory,cx,cy;
+    const float w,h;
 protected:
     Sprite(unsigned int id,float w,float h,const std::string &name);
 
@@ -73,7 +74,6 @@ protected:
     
     std::string name;
     unsigned int id;
-    float w,h;
 };
 
 class StateSprite : public Sprite {

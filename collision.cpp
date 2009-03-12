@@ -41,6 +41,11 @@ void CollisionManager::init(size_t nspace) {
 CollisionManager::CollisionManager(size_t nspace) : spaces(nspace) {}
 CollisionManager::~CollisionManager() {}
 
+void CollisionManager::dump(std::ostream &os) const {
+    os<<spaces.size()<<" collision spaces"<<std::endl;
+    for (Spaces::const_iterator i=spaces.begin(); i!=spaces.end(); i++) os<<"* "<<i->first.size()<<" points "<<i->second.size()<<" areas"<<std::endl;
+}
+
 void CollisionManager::resolve_collision() {
     for (Spaces::const_iterator ispace=spaces.begin(); ispace!=spaces.end(); ispace++) {
         const Points *points=&ispace->first;

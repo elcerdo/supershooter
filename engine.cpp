@@ -125,9 +125,12 @@ void SdlManager::main_loop() {
 }
 
 //***********************************************************
+static long int nsprites_created=0;
+static long int nsprites_destroyed=0;
+
 Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), cx(0), cy(0), name(name), parent(NULL) {}
 
-Sprite::~Sprite() { while (not children.empty()) { delete children.back(); children.pop_back(); } }
+Sprite::~Sprite() { nsprites_destroyed++; while (not children.empty()) { delete children.back(); children.pop_back(); } }
 
 Sprite *Sprite::create_child(const std::string &name) {
     Sprite *child=SpriteManager::get()->get_sprite(name);
@@ -245,6 +248,9 @@ SpriteManager::SpriteManager(size_t maxid) : maxid(maxid), currentid(0) {
 SpriteManager::~SpriteManager() {
     delete [] ids;
     for (IdMap::const_iterator i=idmap.begin(); i!=idmap.end(); i++) SDL_FreeSurface(i->second.surface);
+    cout<<nsprites_created<<" sprites created, "<<nsprites_destroyed<<" sprites destroyed: ";
+    if (nsprites_created==nsprites_destroyed) cout<<"no leak detected"<<endl;
+    else cout<<"leak detected"<<endl;
 }
 
 void SpriteManager::load_directory(const std::string &directory) {
@@ -296,6 +302,7 @@ Sprite *SpriteManager::get_sprite(const std::string &name) const {
     IdMap::const_iterator match=idmap.find(name);
     if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
 
+    nsprites_created++;
     switch (match->second.type) {
     case Record::STATIC:
         return new Sprite(match->second.id,match->second.surface->w,match->second.surface->h,match->first); break;
