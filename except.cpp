@@ -20,6 +20,10 @@ void Except::dump() const {
         cerr<<"duplicate sprite"<<endl; break;
     case SS_XML_PARSING_ERR:
         cerr<<"xml parsing error "<<str<<endl; break;
+    case SS_XML_ID_UNKNOWN_ERR:
+        cerr<<"xml unknown id"<<endl; break;
+    case SS_XML_ID_DUPLICATE_ERR:
+        cerr<<"xml duplicate id"<<endl; break;
     default:
         cerr<<"unknown error "<<n<<endl; break;
     }

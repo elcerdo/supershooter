@@ -50,8 +50,8 @@ public:
         
         x=&body->x;
         y=&body->y;
-        w=100;
-        h=100;
+        w=body->w;
+        h=body->h;
     };
 
     virtual void move(float dt) {
@@ -163,10 +163,13 @@ std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
 class XmlShip : public Ship {
 public:
     typedef std::map<std::string,Sprite*> Sprites;
-    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0) {}
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0), wait(0) {}
 
     virtual void move(float dt) {
-        if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
+        *x+=dt*speed*cos(*angle);
+        *y+=dt*speed*sin(*angle);
+
+        //if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
 
         exec();
 
@@ -184,7 +187,7 @@ protected:
             if (current->ValueStr()=="program") {
                 cout<<"entering "<<current;
                 int repeat=1;
-                current->QueryIntAttribute("repeat",&repeat);
+                current->QueryValueAttribute("repeat",&repeat);
                 cout<<" repeat="<<repeat;
                 stack.push(std::make_pair(current,repeat));
                 cout<<endl;
@@ -192,18 +195,77 @@ protected:
             } else if (current->ValueStr()=="wait") {
                 cout<<"entering "<<current;
                 float time=1.;
-                current->QueryFloatAttribute("time",&time);
+                current->QueryValueAttribute("time",&time);
                 cout<<" time="<<time;
                 wait=time;
                 cout<<endl;
                 current=current->NextSiblingElement();
             } else if (current->ValueStr()=="position") {
                 cout<<"entering "<<current;
-                current->QueryFloatAttribute("x",x);
-                current->QueryFloatAttribute("y",y);
-                current->QueryFloatAttribute("angle",angle);
-                *angle*=M_PI/180.;
-                cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+
+                std::string id;
+                if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
+                    Sprites::iterator foo=sprites.find(id);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    Sprite *select=foo->second;
+                    current->QueryValueAttribute("x",&select->x);
+                    current->QueryValueAttribute("y",&select->y);
+                    if (current->QueryValueAttribute("angle",&select->angle)==TIXML_SUCCESS) select->angle*=M_PI/180.;
+                    cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
+                } else {
+                    current->QueryValueAttribute("x",x);
+                    current->QueryValueAttribute("y",y);
+                    if (current->QueryValueAttribute("angle",angle)==TIXML_SUCCESS) *angle*=M_PI/180.;
+                    cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                }
+
+                current=current->NextSiblingElement();
+            } else if (current->ValueStr()=="positionrel") {
+                cout<<"entering "<<current;
+
+                float _x=0,_y=0,_angle=0;
+                current->QueryValueAttribute("x",&_x);
+                current->QueryValueAttribute("y",&_y);
+                if (current->QueryValueAttribute("angle",&_angle)==TIXML_SUCCESS) _angle*=M_PI/180.;
+
+                std::string id;
+                if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
+                    Sprites::iterator foo=sprites.find(id);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    Sprite *select=foo->second;
+                    select->x+=_x;
+                    select->y+=_y;
+                    select->angle+=_angle;
+                    cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
+                } else {
+                    *x+=_x;
+                    *y+=_y;
+                    *angle+=_angle;
+                    cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                }
+
+                current=current->NextSiblingElement();
+            } else if (current->ValueStr()=="shoot") {
+                cout<<"entering "<<current;
+
+                float _rangle=0,_speed=1000.;
+                current->QueryValueAttribute("speed",&_speed);
+                if (current->QueryValueAttribute("anglerel",&_rangle)==TIXML_SUCCESS) _rangle*=M_PI/180.;
+
+                std::string id;
+                if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
+                    Sprites::iterator foo=sprites.find(id);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    Sprite *select=foo->second;
+                    BulletManager::get()->shoot_from_sprite(select,_rangle,_speed,1,"bullet01");
+                } else BulletManager::get()->shoot_from_sprite(body,_rangle,_speed,1,"bullet01");
+
+                cout<<endl;
+                current=current->NextSiblingElement();
+            } else if (current->ValueStr()=="speed") {
+                cout<<"entering "<<current;
+                current->QueryValueAttribute("value",&speed);
+                cout<<" "<<speed<<endl;
                 current=current->NextSiblingElement();
             } else {
                 cout<<"unknow order "<<current<<endl;
@@ -250,8 +312,8 @@ public:
 
         for (TiXmlElement *ships=root->FirstChildElement("ships"); ships; ships=ships->NextSiblingElement("ships"))
         for (TiXmlElement *ship=ships->FirstChildElement("ship"); ship; ship=ship->NextSiblingElement("ship")) {
-            const char *id=ship->Attribute("id");
-            xml_assert(id);
+            std::string id;
+            xml_assert(ship->QueryValueAttribute("id",&id)==TIXML_SUCCESS);
             if (shipnodes.find(id)!=shipnodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
             shipnodes[id]=ship;
         }
@@ -267,7 +329,7 @@ public:
         if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
 
         float health;
-        xml_assert(foo->second->QueryFloatAttribute("health",&health)==TIXML_SUCCESS);
+        xml_assert(foo->second->QueryValueAttribute("health",&health)==TIXML_SUCCESS);
 
         XmlShip::Sprites sprites;
         Sprite *body=parse_sprite(foo->second->FirstChildElement("sprite"),sprites);
@@ -279,18 +341,26 @@ public:
     }
 
     Sprite *parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,Sprite *parent=NULL) const {
-        const char *name=node->Attribute("name"); 
-        xml_assert(name);
+        std::string name;
+        xml_assert(node->QueryValueAttribute("name",&name)==TIXML_SUCCESS);
 
         Sprite *body;
         if (parent) body=parent->create_child(name);
         else body=SpriteManager::get()->get_sprite(name);
 
-        const char *id=node->Attribute("id");
-        if (id) {
+        std::string id;
+        node->QueryValueAttribute("id",&id);
+        if (not id.empty()) {
             if (sprites.find(id)!=sprites.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
             sprites[id]=body;
         }
+
+        node->QueryValueAttribute("z",&body->z);
+        node->QueryValueAttribute("x",&body->x);
+        node->QueryValueAttribute("y",&body->y);
+        node->QueryValueAttribute("cx",&body->cx);
+        node->QueryValueAttribute("cy",&body->cy);
+        if (node->QueryValueAttribute("angle",&body->angle)==TIXML_SUCCESS) body->angle*=M_PI/180.;
 
         for (TiXmlElement *child=node->FirstChildElement("sprite"); child; child=child->NextSiblingElement("sprite"))
             parse_sprite(child,sprites,body);
@@ -341,6 +411,7 @@ int main() {
         SdlManager::free();
     } catch (Except e) {
         e.dump();
+        return 1;
     }
 }
 
