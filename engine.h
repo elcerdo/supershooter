@@ -30,7 +30,7 @@ class SdlManager {
 public:
     static SdlManager *get();
     static void free();
-    static void init(int w=800,int h=600, int d=32);
+    static void init(int w=1024,int h=768, int d=32);
 
     const unsigned char *get_key_state() const;
 

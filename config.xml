@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<config>
+	<ships>
+		<ship health="20" id="bigship">
+			<sprite name="bigship00" z="-1.">
+				<sprite id="body" name="ship00" z="2."/>
+				<sprite id="turretl" name="turret00" z="1."/>
+			</sprite>
+			<program repeat="5">
+				<position x="30" y="50" angle="45"/>
+				<wait time=".5"/>
+				<position angle="0"/>
+				<wait/>
+			</program>
+		</ship>
+		<ship id="basicship">
+			<sprite id="body" name="ship00" z="2."/>
+			<program/>
+		</ship>
+	</ships>
+
+
+
+</config>
+

@@ -11,6 +11,9 @@ struct Except {
         SS_SPRITE_CONVERSION_ERR,
         SS_SPRITE_UNKNOWN_ERR,
         SS_SPRITE_DUPLICATE_ERR,
+        SS_XML_PARSING_ERR,
+        SS_XML_ID_UNKNOWN_ERR,
+        SS_XML_ID_DUPLICATE_ERR,
     };
     Except(ExceptType n,const std::string &str="") : n(n), str(str) {};
     ExceptType n;

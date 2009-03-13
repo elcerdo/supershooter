@@ -26,7 +26,7 @@ void SdlManager::init(int w,int h,int d) {
 SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h), old_ticks(0) {
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_OPENGL)) { cerr<<"cannot initialize sdl..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
-    screen=SDL_SetVideoMode(800,600,32,SDL_OPENGL|SDL_DOUBLEBUF);
+    screen=SDL_SetVideoMode(width,height,d,SDL_OPENGL|SDL_DOUBLEBUF);
     if (not screen) { cerr<<"cannot create sdl screen..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
     SDL_SetEventFilter(&event_filter);

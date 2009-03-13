@@ -18,5 +18,9 @@ void Except::dump() const {
         cerr<<"sprite unknown "<<str<<endl; break;
     case SS_SPRITE_DUPLICATE_ERR:
         cerr<<"duplicate sprite"<<endl; break;
+    case SS_XML_PARSING_ERR:
+        cerr<<"xml parsing error "<<str<<endl; break;
+    default:
+        cerr<<"unknown error "<<n<<endl; break;
     }
 }

@@ -146,6 +146,169 @@ protected:
     StaticArea *test;
 };
 
+#include "tinyxml/tinyxml.h"
+#include <stack>
+
+std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
+    if (elem) {
+        os<<"["<<elem->Value();
+        TiXmlAttribute *att=const_cast<TiXmlElement*>(elem)->FirstAttribute();
+        if (att) { cout<<"|"<<att->Name(); att=att->Next(); }
+        while (att) { os<<" "<<att->Name(); att=att->Next(); }
+        return os<<"]";
+    }
+    return os<<"[NULL]";
+}
+
+class XmlShip : public Ship {
+public:
+    typedef std::map<std::string,Sprite*> Sprites;
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0) {}
+
+    virtual void move(float dt) {
+        if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
+
+        exec();
+
+        if (wait>0) wait-=dt;
+        if (wait<0) wait=0;
+        t+=dt;
+    }
+protected:
+    void exec() {
+        if (wait>0) return;
+
+        for (size_t k=0; k<stack.size(); k++) cout<<"-";
+
+        if (current) {
+            if (current->ValueStr()=="program") {
+                cout<<"entering "<<current;
+                int repeat=1;
+                current->QueryIntAttribute("repeat",&repeat);
+                cout<<" repeat="<<repeat;
+                stack.push(std::make_pair(current,repeat));
+                cout<<endl;
+                current=current->FirstChildElement();
+            } else if (current->ValueStr()=="wait") {
+                cout<<"entering "<<current;
+                float time=1.;
+                current->QueryFloatAttribute("time",&time);
+                cout<<" time="<<time;
+                wait=time;
+                cout<<endl;
+                current=current->NextSiblingElement();
+            } else if (current->ValueStr()=="position") {
+                cout<<"entering "<<current;
+                current->QueryFloatAttribute("x",x);
+                current->QueryFloatAttribute("y",y);
+                current->QueryFloatAttribute("angle",angle);
+                *angle*=M_PI/180.;
+                cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                current=current->NextSiblingElement();
+            } else {
+                cout<<"unknow order "<<current<<endl;
+                current=current->NextSiblingElement();
+            }
+        } else if (not stack.empty()) {
+            ExecutionStack::value_type top=stack.top();
+            stack.pop();
+
+            top.second--;
+            if (top.second) {
+                cout<<"repeating "<<top.first<<" "<<top.second<<endl;
+                current=top.first->FirstChildElement();
+                stack.push(top);
+            } else {
+                cout<<"returning from "<<top.first<<endl;
+                current=top.first->NextSiblingElement();
+            }
+
+        } 
+
+        if (current or not stack.empty()) exec();
+    }
+
+    float speed,t,wait;
+    float *angle;
+
+    Sprites sprites;
+    TiXmlElement *current;
+    typedef std::stack<std::pair<TiXmlElement*,int> > ExecutionStack;
+    ExecutionStack stack;
+};
+
+
+
+class XmlEnemies {
+public:
+    XmlEnemies(const std::string &configfile) {
+        xml_assert(config.LoadFile(configfile));
+        config.Print();
+
+        TiXmlElement *root=config.FirstChildElement("config");
+        xml_assert(root);
+
+        for (TiXmlElement *ships=root->FirstChildElement("ships"); ships; ships=ships->NextSiblingElement("ships"))
+        for (TiXmlElement *ship=ships->FirstChildElement("ship"); ship; ship=ship->NextSiblingElement("ship")) {
+            const char *id=ship->Attribute("id");
+            xml_assert(id);
+            if (shipnodes.find(id)!=shipnodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
+            shipnodes[id]=ship;
+        }
+
+    }
+
+    void const dump(std::ostream &os=std::cout) {
+        os<<shipnodes.size()<<" ships"<<endl;
+    }
+
+    XmlShip *launch_ship(const std::string &id) {
+        ShipNodes::iterator foo=shipnodes.find(id);
+        if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+
+        float health;
+        xml_assert(foo->second->QueryFloatAttribute("health",&health)==TIXML_SUCCESS);
+
+        XmlShip::Sprites sprites;
+        Sprite *body=parse_sprite(foo->second->FirstChildElement("sprite"),sprites);
+        body->dump();
+
+        XmlShip *ship=new XmlShip(body,sprites,foo->second->FirstChildElement("program"),health);
+        ShipManager::get()->add_ship(ship,0); //add as enemy
+        return ship;
+    }
+
+    Sprite *parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,Sprite *parent=NULL) const {
+        const char *name=node->Attribute("name"); 
+        xml_assert(name);
+
+        Sprite *body;
+        if (parent) body=parent->create_child(name);
+        else body=SpriteManager::get()->get_sprite(name);
+
+        const char *id=node->Attribute("id");
+        if (id) {
+            if (sprites.find(id)!=sprites.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
+            sprites[id]=body;
+        }
+
+        for (TiXmlElement *child=node->FirstChildElement("sprite"); child; child=child->NextSiblingElement("sprite"))
+            parse_sprite(child,sprites,body);
+
+        if (parent) return NULL;
+        return body;
+    }
+
+protected:
+    void xml_assert(bool v) const { if (not v) throw Except(Except::SS_XML_PARSING_ERR,config.ErrorDesc()); }
+    typedef std::map<std::string,TiXmlElement*> ShipNodes;
+    ShipNodes shipnodes;
+
+    TiXmlDocument config;
+};
+
+
+
 
 
 int main() {
@@ -163,6 +326,10 @@ int main() {
         SdlManager::get()->register_listener(ShipManager::get());
         SdlManager::get()->set_background_color(.5,.6,.7);
         {
+            XmlEnemies aaa("config.xml");
+            aaa.dump();
+            aaa.launch_ship("bigship");
+
             Spawner spawner;
             SdlManager::get()->register_listener(&spawner);
             SdlManager::get()->main_loop();

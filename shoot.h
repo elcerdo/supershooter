@@ -23,7 +23,7 @@ public:
     static void free();
     static void init(size_t nspace=2);
 
-    void add_ship(Ship *ship,size_t );
+    void add_ship(Ship *ship,size_t kspace);
 protected:
     ShipManager(size_t nspace=2);
     ~ShipManager();

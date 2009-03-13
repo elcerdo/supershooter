@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 2.6)
 find_package(SDL REQUIRED)
 find_package(SDL_image REQUIRED)
 find_package(OpenGL REQUIRED)
+
+add_definitions(-DTIXML_USE_STL)
 subdirs(tinyxml)
 
 add_library(zizi
@@ -25,4 +27,5 @@ target_link_libraries(zizidemo
 add_executable(supershooter
     main.cpp)
 target_link_libraries(supershooter
+    tinyxml
     zizi)
