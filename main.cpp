@@ -11,7 +11,7 @@ public:
         *x=ix;
         *y=iy;
     }
-    void move(float dt) {}
+    bool move(float dt) { return true; }
 };
 
 class StaticArea : public Area {
@@ -25,9 +25,9 @@ protected:
 };
 
 
-class BigShip : public Ship {
+class BigShip : public Ship, public Listener {
 public:
-    BigShip() : Ship(100), angle(0), speed(0), shooting(false), reload(0) {
+    BigShip() : Ship(100), angle(M_PI), speed(0), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
@@ -45,16 +45,16 @@ public:
         turrel_right->z=1;
         turrel_right->angle=-M_PI/180.*15;
 
-        body->x=100;
-        body->y=100;
+        body->x=700;
+        body->y=300;
         
         x=&body->x;
         y=&body->y;
         w=body->w;
         h=body->h;
-    };
+    }
 
-    virtual void move(float dt) {
+    virtual bool move(float dt) {
         *x+=dt*speed*cos(angle);
         *y+=dt*speed*sin(angle);
         body->angle=angle;
@@ -73,14 +73,52 @@ public:
 
         if (shooting) { turrel_left->state=1; turrel_right->state=1; }
         else { turrel_left->state=0; turrel_right->state=0; }
+
+        return true;
     }
 
-    bool shooting;
-    float angle,speed;
+
+protected:
+    virtual bool key_down(SDLKey key) {
+        switch (key) {
+        case SDLK_SPACE:
+            shooting=not shooting; break;
+        }
+        return true;
+    }
+
+    virtual bool frame_entered(float t,float dt) {
+        const unsigned char *state=SdlManager::get()->get_key_state();
+        if (state[SDLK_LEFT]) angle-=M_PI/180.*dt*180.;
+        if (state[SDLK_RIGHT]) angle+=M_PI/180.*dt*180.;
+        if (state[SDLK_UP]) speed+=dt*300.;
+        if (state[SDLK_DOWN]) speed-=dt*300.;
+        speed-=speed*1.*dt;
+
+        float turrel_angle=M_PI/180.*(30.+20.*cos(2*M_PI*.8*t));
+        turrel_left->angle=-turrel_angle;
+        turrel_right->angle=turrel_angle;
+
+        move(dt);
+        draw();
+
+        if (health<0) SdlManager::get()->unregister_listener(this);
+
+        return true;
+    }
+
+    virtual void register_self() {
+        CollisionManager::get()->spaces[1].second.insert(this);
+    }
+
+    virtual void unregister_self() {
+        CollisionManager::get()->spaces[1].second.erase(this);
+    }
 
     AnimatedSprite *turrel_left;
     AnimatedSprite *turrel_right;
-protected:
+    bool shooting;
+    float angle,speed;
     float reload;
 };
     
@@ -88,28 +126,19 @@ class Spawner : public Listener {
 public:
     Spawner() {
         test=new StaticArea(SpriteManager::get()->get_sprite("aa"));
-        *test->x=200;
-        *test->y=200;
-        CollisionManager::get()->spaces[0].second.insert(test);
+        *test->x=700;
+        *test->y=300;
+        CollisionManager::get()->spaces[1].second.insert(test);
     }
     ~Spawner() {
-        CollisionManager::get()->spaces[0].second.erase(test);
+        CollisionManager::get()->spaces[1].second.erase(test);
         delete test;
     }
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
-        case SDLK_SPACE:
-            bigship->shooting=not bigship->shooting; break;
         case SDLK_ESCAPE:
             return false; break;
-        }
-        return true;
-    }
-    virtual bool key_up(SDLKey key) {
-        switch (key) {
-        case SDLK_SPACE:
-            break;
         }
         return true;
     }
@@ -120,29 +149,14 @@ protected:
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
-        const unsigned char *state=SdlManager::get()->get_key_state();
-        if (state[SDLK_LEFT]) bigship->angle-=M_PI/180.*dt*180.;
-        if (state[SDLK_RIGHT]) bigship->angle+=M_PI/180.*dt*180.;
-        if (state[SDLK_UP]) bigship->speed+=dt*300.;
-        if (state[SDLK_DOWN]) bigship->speed-=dt*300.;
-        bigship->speed-=bigship->speed*1.*dt;
-
-        float turrel_angle=M_PI/180.*(45.+45.*cos(2*M_PI*.4*t));
-        bigship->turrel_left->angle=-turrel_angle;
-        bigship->turrel_right->angle=turrel_angle;
-
         test->draw();
-
         return true;
     }
 
     virtual void register_self() {
-        bigship=new BigShip;
-        ShipManager::get()->add_ship(bigship,1);
         ShipManager::get()->add_ship(new StaticShip(SpriteManager::get()->get_sprite("font"),30,500),0);
     }
 
-    BigShip *bigship;
     StaticArea *test;
 };
 
@@ -163,45 +177,51 @@ std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
 class XmlShip : public Ship {
 public:
     typedef std::map<std::string,Sprite*> Sprites;
-    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0), wait(0) {}
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug=false) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0), wait(0), debug(debug) {}
 
-    virtual void move(float dt) {
+    virtual bool move(float dt) {
+        if (*x>SdlManager::get()->width+256 or *x<-256 or *y>SdlManager::get()->height+256 or *y<-256) return false;
+
         *x+=dt*speed*cos(*angle);
         *y+=dt*speed*sin(*angle);
 
-        //if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
+        if (debug) if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
 
         exec();
 
         if (wait>0) wait-=dt;
         if (wait<0) wait=0;
         t+=dt;
+
+        return true;
     }
+    bool debug;
+    float *angle;
 protected:
     void exec() {
         if (wait>0) return;
 
-        for (size_t k=0; k<stack.size(); k++) cout<<"-";
+        if (debug) for (size_t k=0; k<stack.size(); k++) cout<<"-";
 
         if (current) {
             if (current->ValueStr()=="program") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
                 int repeat=1;
                 current->QueryValueAttribute("repeat",&repeat);
-                cout<<" repeat="<<repeat;
+                if (debug) cout<<" repeat="<<repeat;
                 stack.push(std::make_pair(current,repeat));
-                cout<<endl;
+                if (debug) cout<<endl;
                 current=current->FirstChildElement();
             } else if (current->ValueStr()=="wait") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
                 float time=1.;
                 current->QueryValueAttribute("time",&time);
-                cout<<" time="<<time;
+                if (debug) cout<<" time="<<time;
                 wait=time;
-                cout<<endl;
+                if (debug) cout<<endl;
                 current=current->NextSiblingElement();
             } else if (current->ValueStr()=="position") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
 
                 std::string id;
                 if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
@@ -211,17 +231,17 @@ protected:
                     current->QueryValueAttribute("x",&select->x);
                     current->QueryValueAttribute("y",&select->y);
                     if (current->QueryValueAttribute("angle",&select->angle)==TIXML_SUCCESS) select->angle*=M_PI/180.;
-                    cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
+                    if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
                 } else {
                     current->QueryValueAttribute("x",x);
                     current->QueryValueAttribute("y",y);
                     if (current->QueryValueAttribute("angle",angle)==TIXML_SUCCESS) *angle*=M_PI/180.;
-                    cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                    if (debug) cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
                 }
 
                 current=current->NextSiblingElement();
             } else if (current->ValueStr()=="positionrel") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
 
                 float _x=0,_y=0,_angle=0;
                 current->QueryValueAttribute("x",&_x);
@@ -236,19 +256,19 @@ protected:
                     select->x+=_x;
                     select->y+=_y;
                     select->angle+=_angle;
-                    cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
+                    if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
                 } else {
                     *x+=_x;
                     *y+=_y;
                     *angle+=_angle;
-                    cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                    if (debug) cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
                 }
 
                 current=current->NextSiblingElement();
             } else if (current->ValueStr()=="shoot") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
 
-                float _rangle=0,_speed=1000.;
+                float _rangle=0,_speed=300.;
                 current->QueryValueAttribute("speed",&_speed);
                 if (current->QueryValueAttribute("anglerel",&_rangle)==TIXML_SUCCESS) _rangle*=M_PI/180.;
 
@@ -260,15 +280,15 @@ protected:
                     BulletManager::get()->shoot_from_sprite(select,_rangle,_speed,1,"bullet01");
                 } else BulletManager::get()->shoot_from_sprite(body,_rangle,_speed,1,"bullet01");
 
-                cout<<endl;
+                if (debug) cout<<endl;
                 current=current->NextSiblingElement();
             } else if (current->ValueStr()=="speed") {
-                cout<<"entering "<<current;
+                if (debug) cout<<"entering "<<current;
                 current->QueryValueAttribute("value",&speed);
-                cout<<" "<<speed<<endl;
+                if (debug) cout<<" "<<speed<<endl;
                 current=current->NextSiblingElement();
             } else {
-                cout<<"unknow order "<<current<<endl;
+                if (debug) cout<<"unknow order "<<current<<endl;
                 current=current->NextSiblingElement();
             }
         } else if (not stack.empty()) {
@@ -277,11 +297,11 @@ protected:
 
             top.second--;
             if (top.second) {
-                cout<<"repeating "<<top.first<<" "<<top.second<<endl;
+                if (debug) cout<<"repeating "<<top.first<<" "<<top.second<<endl;
                 current=top.first->FirstChildElement();
                 stack.push(top);
             } else {
-                cout<<"returning from "<<top.first<<endl;
+                if (debug) cout<<"returning from "<<top.first<<endl;
                 current=top.first->NextSiblingElement();
             }
 
@@ -291,7 +311,6 @@ protected:
     }
 
     float speed,t,wait;
-    float *angle;
 
     Sprites sprites;
     TiXmlElement *current;
@@ -305,7 +324,6 @@ class XmlEnemies {
 public:
     XmlEnemies(const std::string &configfile) {
         xml_assert(config.LoadFile(configfile));
-        config.Print();
 
         TiXmlElement *root=config.FirstChildElement("config");
         xml_assert(root);
@@ -324,7 +342,7 @@ public:
         os<<shipnodes.size()<<" ships"<<endl;
     }
 
-    XmlShip *launch_ship(const std::string &id) {
+    XmlShip *launch_ship(const std::string &id,const std::string &prgid,float x,float y,float angle) {
         ShipNodes::iterator foo=shipnodes.find(id);
         if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
 
@@ -333,9 +351,19 @@ public:
 
         XmlShip::Sprites sprites;
         Sprite *body=parse_sprite(foo->second->FirstChildElement("sprite"),sprites);
-        body->dump();
 
-        XmlShip *ship=new XmlShip(body,sprites,foo->second->FirstChildElement("program"),health);
+        TiXmlElement *program=NULL;
+        for (TiXmlElement *i=foo->second->FirstChildElement("program"); i; i=i->NextSiblingElement("program")) {
+            std::string current_prgid;
+            i->QueryValueAttribute("id",&current_prgid);
+            if (prgid==current_prgid) { program=i; break; }
+        }
+        if (not program) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+
+        XmlShip *ship=new XmlShip(body,sprites,program,health);
+        *ship->x=x;
+        *ship->y=y;
+        *ship->angle=angle;
         ShipManager::get()->add_ship(ship,0); //add as enemy
         return ship;
     }
@@ -382,7 +410,7 @@ protected:
 
 
 int main() {
-    try {
+   // try {
         SdlManager::init();
         SpriteManager::init();
         CollisionManager::init();
@@ -398,10 +426,15 @@ int main() {
         {
             XmlEnemies aaa("config.xml");
             aaa.dump();
-            aaa.launch_ship("bigship");
+            aaa.launch_ship("bigship","main",0,300,0);
+            aaa.launch_ship("bigship","main",0,400,0);
+            for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",0,y,0);
+            for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",-50,y,0);
 
-            Spawner spawner;
-            SdlManager::get()->register_listener(&spawner);
+            //Spawner spawner;
+            BigShip bigship;
+            //SdlManager::get()->register_listener(&spawner);
+            SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
         }
         ShipManager::free();
@@ -409,10 +442,10 @@ int main() {
         CollisionManager::free();
         SpriteManager::free();
         SdlManager::free();
-    } catch (Except e) {
-        e.dump();
-        return 1;
-    }
+   // } catch (Except e) {
+   //     e.dump();
+   //     return 1;
+   // }
 }
 
 

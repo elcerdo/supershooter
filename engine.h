@@ -3,6 +3,7 @@
 
 #include <map>
 #include <list>
+#include <set>
 #include <string>
 #include <iostream>
 #include <SDL/SDL_keysym.h>
@@ -40,7 +41,7 @@ public:
     void set_background_color(float r,float g,float b);
     const float width,height;
 protected:
-    typedef std::list<Listener*> Listeners;
+    typedef std::set<Listener*> Listeners;
 
     SdlManager(int w,int h,int d);
     ~SdlManager();

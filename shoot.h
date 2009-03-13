@@ -11,7 +11,7 @@ struct Ship : public Area {
     Ship(float health);
     Ship(Sprite *body,float health);
     virtual ~Ship();
-    virtual void move(float dt)=0;
+    virtual bool move(float dt)=0;
     virtual void draw() const;
     Sprite *body;
     float health;

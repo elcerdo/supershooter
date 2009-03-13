@@ -50,14 +50,13 @@ bool ShipManager::frame_entered(float t,float dt) {
     size_t kspace=0;
     for (Spaces::iterator ships=spaces.begin(); ships!=spaces.end(); ships++) {
         for (Ships::iterator i=ships->begin(); i!=ships->end(); i++) {
-            if ((*i)->health<0) {
+            if ((*i)->health<0 or not (*i)->move(dt)) {
                 delete *i;
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);
                 ndestroyed++;
                 continue;
             }
-            (*i)->move(dt);
             (*i)->draw();
         }
         kspace++;

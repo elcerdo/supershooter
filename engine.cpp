@@ -60,11 +60,11 @@ SdlManager::~SdlManager() {
 
 void SdlManager::register_listener(Listener *listener) { //FIXME duplicate
     if (in_main_loop) listener->register_self();
-    listeners.push_back(listener);
+    listeners.insert(listener);
 }
 
 void SdlManager::unregister_listener(Listener *listener) { //FIXME existance
-    listeners.remove(listener);
+    listeners.erase(listener);
     if (in_main_loop) listener->unregister_self();
 }
 
