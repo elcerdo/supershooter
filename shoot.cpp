@@ -13,7 +13,7 @@ using std::endl;
 Ship::Ship(float health) : body(NULL), health(health) {}
 Ship::Ship(Sprite *body,float health) : Area(&body->x,&body->y), body(body), health(health) { w=body->w;  h=body->h; }
 Ship::~Ship() { if (body) delete body; }
-void Ship::draw() const { if (body) body->draw(); }
+void Ship::draw(float dt) const { if (body) body->draw(dt); }
 
 static ShipManager *mShipManager=NULL;
 
@@ -57,7 +57,7 @@ bool ShipManager::frame_entered(float t,float dt) {
                 ndestroyed++;
                 continue;
             }
-            (*i)->draw();
+            (*i)->draw(dt);
         }
         kspace++;
     }
@@ -73,7 +73,7 @@ void ShipManager::add_ship(Ship *ship,size_t kspace) {
 }
 
 //***********************************************************
-Bullet::Bullet(Sprite *sprite,float angle,float speed,float damage) : Point(&sprite->x,&sprite->y), sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)), damage(damage) {}
+Bullet::Bullet(Sprite *sprite,float angle,float speed,float damage) : Point(&sprite->x,&sprite->y), sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)), damage(damage) { sprite->angle=angle;}
 Bullet::~Bullet() { delete sprite; }
 void Bullet::move(float dt) { *x+=dt*vx; *y+=dt*vy; }
 
@@ -141,25 +141,25 @@ bool BulletManager::frame_entered(float t,float dt) {
         }
     }
 
-    draw();
+    draw(dt);
     return true;
 }
 
-void BulletManager::shoot(float x,float y,float angle,float speed,size_t kspace,const std::string &name,float damage) {
+Bullet *BulletManager::shoot(float x,float y,float angle,float speed,size_t kspace,const std::string &name,float damage) {
     Sprite *sprite=SpriteManager::get()->get_sprite(name);
     sprite->x=x;
     sprite->y=y;
     Bullet *bullet=new Bullet(sprite,angle,speed,damage);
     spaces[kspace].insert(bullet);
     CollisionManager::get()->spaces[kspace].first.insert(bullet);
-
     ncreated++;
+    return bullet;
 }
 
-void BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle,float speed,size_t kspace,const std::string &name,float damage) {
+Bullet *BulletManager::shoot_from_sprite(const Sprite *sprite,float rangle,float speed,size_t kspace,const std::string &name,float damage) {
     float ax,ay,aangle,afactorx,afactory;
     sprite->absolute_coordinates(ax,ay,aangle,afactorx,afactory);
-    shoot(ax,ay,aangle+rangle,speed,kspace,name,damage);
+    return shoot(ax,ay,aangle+rangle,speed,kspace,name,damage);
 }
 
 void BulletManager::move(float dt) { 
@@ -180,9 +180,9 @@ void BulletManager::move(float dt) {
     }
 }
 
-void BulletManager::draw() const {
+void BulletManager::draw(float dt) const {
     for (Spaces::const_iterator bullets=spaces.begin(); bullets!=spaces.end(); bullets++)
     for (Bullets::const_iterator i=bullets->begin(); i!=bullets->end(); i++)
-        (*i)->sprite->draw();
+        (*i)->sprite->draw(dt);
 }
 

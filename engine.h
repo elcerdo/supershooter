@@ -58,7 +58,7 @@ class Sprite {
 friend class SpriteManager;
 public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
-    virtual void draw() const;
+    virtual void draw(float dt) const;
     Sprite *create_child(const std::string &name);
     void absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const;
 
@@ -81,7 +81,7 @@ class StateSprite : public Sprite {
 friend class SpriteManager;
 public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
-    virtual void draw() const;
+    virtual void draw(float dt) const;
 
     const unsigned int nstate;
     unsigned int state;
@@ -91,20 +91,18 @@ protected:
     StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate);
 };
 
-class AnimatedSprite : public Sprite {
+class AnimatedSprite : public StateSprite {
 friend class SpriteManager;
 public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
-    virtual void draw() const;
-
-    const unsigned int nstate;
-    unsigned int state;
+    virtual void draw(float dt) const;
 
     const unsigned int nframe;
-    unsigned int repeat;
+    unsigned int length;
+    bool repeat;
     float pos,speed;
 
-    const float rh,rw;
+    const float rw;
 protected:
     AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe);
 };

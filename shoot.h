@@ -12,7 +12,7 @@ struct Ship : public Area {
     Ship(Sprite *body,float health);
     virtual ~Ship();
     virtual bool move(float dt)=0;
-    virtual void draw() const;
+    virtual void draw(float dt) const;
     Sprite *body;
     float health;
 };
@@ -55,8 +55,8 @@ public:
     static void free();
     static void init(size_t nspace=2);
 
-    void shoot(float x,float y,float angle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
-    void shoot_from_sprite(const Sprite *sprite,float rangle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
+    Bullet *shoot(float x,float y,float angle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
+    Bullet *shoot_from_sprite(const Sprite *sprite,float rangle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
 protected:
     BulletManager(size_t nspace);
     ~BulletManager();
@@ -64,7 +64,7 @@ protected:
     virtual bool frame_entered(float t,float dt);
     virtual void unregister_self();
     void move(float dt);
-    void draw() const;
+    void draw(float dt) const;
 
     typedef std::set<Bullet*> Bullets;
     typedef std::vector<Bullets> Spaces;

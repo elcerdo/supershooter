@@ -45,21 +45,24 @@ protected:
         return true;
     }
     virtual bool mouse_down(int button,float x,float y) {
-        Sprite *s=SpriteManager::get()->get_sprite("bullet");
+        Sprite *s=SpriteManager::get()->get_sprite("bullet00");
         s->x=x;
         s->y=y;
         sprites.push_back(s);
 
-        Sprite *ca=s->create_child("bullet");
-        Sprite *cb=s->create_child("bullet");
+        AnimatedSprite *ca=dynamic_cast<AnimatedSprite*>(s->create_child("bullet00"));
+        AnimatedSprite *cb=dynamic_cast<AnimatedSprite*>(s->create_child("bullet00"));
+        ca->repeat=false;
+        ca->length=3;
         ca->x=-16;
         ca->y=+16;
         cb->x=+16;
         cb->y=-16;
+        cb->length=2;
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
-        for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->draw();
+        for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->draw(dt);
         return true;
     }
     virtual void unregister_self() {

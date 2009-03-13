@@ -5,26 +5,6 @@
 using std::cout;
 using std::endl;
 
-class StaticShip : public Ship {
-public:
-    StaticShip(Sprite *body,float ix,float iy) : Ship(body,100) {
-        *x=ix;
-        *y=iy;
-    }
-    bool move(float dt) { return true; }
-};
-
-class StaticArea : public Area {
-public:
-    StaticArea(Sprite *sprite) : Area(&sprite->x,&sprite->y), sprite(sprite) { w=sprite->w; h=sprite->h; }
-    ~StaticArea() { delete sprite; }
-
-    void draw() const { sprite->draw(); }
-protected:
-    Sprite *sprite;
-};
-
-
 class BigShip : public Ship, public Listener {
 public:
     BigShip() : Ship(100), angle(M_PI), speed(0), shooting(false), reload(0) {
@@ -33,12 +13,14 @@ public:
         //body->factorx=2.;
         //body->factory=2.;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
+        turrel_left->speed=5.;
         turrel_left->x=-16;
         turrel_left->y=-8;
         turrel_left->cx=10;
         turrel_left->z=1;
         turrel_left->angle=M_PI/180.*15;
         turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
+        turrel_right->speed=5.;
         turrel_right->x=-16;
         turrel_right->y=8;
         turrel_right->cx=10;
@@ -100,7 +82,7 @@ protected:
         turrel_right->angle=turrel_angle;
 
         move(dt);
-        draw();
+        draw(dt);
 
         if (health<0) SdlManager::get()->unregister_listener(this);
 
@@ -122,18 +104,7 @@ protected:
     float reload;
 };
     
-class Spawner : public Listener {
-public:
-    Spawner() {
-        test=new StaticArea(SpriteManager::get()->get_sprite("aa"));
-        *test->x=700;
-        *test->y=300;
-        CollisionManager::get()->spaces[1].second.insert(test);
-    }
-    ~Spawner() {
-        CollisionManager::get()->spaces[1].second.erase(test);
-        delete test;
-    }
+class Killer : public Listener {
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
@@ -142,22 +113,7 @@ protected:
         }
         return true;
     }
-
-    virtual bool mouse_down(int button,float x,float y) {
-        *test->x=x;
-        *test->y=y;
-        return true;
-    }
-    virtual bool frame_entered(float t,float dt) {
-        test->draw();
-        return true;
-    }
-
-    virtual void register_self() {
-        ShipManager::get()->add_ship(new StaticShip(SpriteManager::get()->get_sprite("font"),30,500),0);
-    }
-
-    StaticArea *test;
+    virtual bool frame_entered(float t,float dt) { return true; }
 };
 
 #include "tinyxml/tinyxml.h"
@@ -226,7 +182,7 @@ protected:
                 std::string id;
                 if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
                     Sprites::iterator foo=sprites.find(id);
-                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
                     Sprite *select=foo->second;
                     current->QueryValueAttribute("x",&select->x);
                     current->QueryValueAttribute("y",&select->y);
@@ -251,7 +207,7 @@ protected:
                 std::string id;
                 if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
                     Sprites::iterator foo=sprites.find(id);
-                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
                     Sprite *select=foo->second;
                     select->x+=_x;
                     select->y+=_y;
@@ -269,16 +225,26 @@ protected:
                 if (debug) cout<<"entering "<<current;
 
                 float _rangle=0,_speed=300.;
+                std::string _name="bullet01";
                 current->QueryValueAttribute("speed",&_speed);
+                current->QueryValueAttribute("name",&_name);
                 if (current->QueryValueAttribute("anglerel",&_rangle)==TIXML_SUCCESS) _rangle*=M_PI/180.;
 
                 std::string id;
+                Bullet *bullet;
                 if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
                     Sprites::iterator foo=sprites.find(id);
-                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+                    if (foo==sprites.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
                     Sprite *select=foo->second;
-                    BulletManager::get()->shoot_from_sprite(select,_rangle,_speed,1,"bullet01");
-                } else BulletManager::get()->shoot_from_sprite(body,_rangle,_speed,1,"bullet01");
+                    bullet=BulletManager::get()->shoot_from_sprite(select,_rangle,_speed,1,_name);
+                } else bullet=BulletManager::get()->shoot_from_sprite(body,_rangle,_speed,1,_name);
+
+                if (StateSprite *cast=dynamic_cast<StateSprite*>(bullet->sprite)) current->QueryValueAttribute("sprstate",&cast->state);
+                if (AnimatedSprite *cast=dynamic_cast<AnimatedSprite*>(bullet->sprite)) {
+                    current->QueryValueAttribute("sprspeed",&cast->speed);
+                    current->QueryValueAttribute("sprrepeat",&cast->repeat);
+                    current->QueryValueAttribute("sprlength",&cast->length);
+                }
 
                 if (debug) cout<<endl;
                 current=current->NextSiblingElement();
@@ -332,7 +298,7 @@ public:
         for (TiXmlElement *ship=ships->FirstChildElement("ship"); ship; ship=ship->NextSiblingElement("ship")) {
             std::string id;
             xml_assert(ship->QueryValueAttribute("id",&id)==TIXML_SUCCESS);
-            if (shipnodes.find(id)!=shipnodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
+            if (shipnodes.find(id)!=shipnodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR,id);
             shipnodes[id]=ship;
         }
 
@@ -344,7 +310,7 @@ public:
 
     XmlShip *launch_ship(const std::string &id,const std::string &prgid,float x,float y,float angle) {
         ShipNodes::iterator foo=shipnodes.find(id);
-        if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+        if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
 
         float health;
         xml_assert(foo->second->QueryValueAttribute("health",&health)==TIXML_SUCCESS);
@@ -358,7 +324,7 @@ public:
             i->QueryValueAttribute("id",&current_prgid);
             if (prgid==current_prgid) { program=i; break; }
         }
-        if (not program) throw Except(Except::SS_XML_ID_UNKNOWN_ERR);
+        if (not program) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,prgid);
 
         XmlShip *ship=new XmlShip(body,sprites,program,health);
         *ship->x=x;
@@ -389,6 +355,12 @@ public:
         node->QueryValueAttribute("cx",&body->cx);
         node->QueryValueAttribute("cy",&body->cy);
         if (node->QueryValueAttribute("angle",&body->angle)==TIXML_SUCCESS) body->angle*=M_PI/180.;
+        if (StateSprite *cast=dynamic_cast<StateSprite*>(body)) node->QueryValueAttribute("state",&cast->state);
+        if (AnimatedSprite *cast=dynamic_cast<AnimatedSprite*>(body)) {
+            node->QueryValueAttribute("speed",&cast->speed);
+            node->QueryValueAttribute("repeat",&cast->repeat);
+            node->QueryValueAttribute("length",&cast->length);
+        }
 
         for (TiXmlElement *child=node->FirstChildElement("sprite"); child; child=child->NextSiblingElement("sprite"))
             parse_sprite(child,sprites,body);
@@ -410,7 +382,7 @@ protected:
 
 
 int main() {
-   // try {
+    try {
         SdlManager::init();
         SpriteManager::init();
         CollisionManager::init();
@@ -431,9 +403,9 @@ int main() {
             for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",0,y,0);
             for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",-50,y,0);
 
-            //Spawner spawner;
+            Killer killer;
             BigShip bigship;
-            //SdlManager::get()->register_listener(&spawner);
+            SdlManager::get()->register_listener(&killer);
             SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
         }
@@ -442,10 +414,10 @@ int main() {
         CollisionManager::free();
         SpriteManager::free();
         SdlManager::free();
-   // } catch (Except e) {
-   //     e.dump();
-   //     return 1;
-   // }
+    } catch (Except e) {
+        e.dump();
+        return 1;
+    }
 }
 
 

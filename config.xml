@@ -3,14 +3,14 @@
 	<ships>
 		<ship health="20" id="bigship">
 			<sprite name="bigship00" z="-1." x="50" y="300">
-				<sprite id="turretr" name="turret00" z="1." angle="-45" x="-16" y="-8" cx="10"/>
-				<sprite id="turretl" name="turret00" z="1." angle="45"  x="-16" y="8"  cx="10"/>
+				<sprite id="turretr" name="turret00" z="1." angle="-45" x="-16" y="-8" cx="10" state="1"/>
+				<sprite id="turretl" name="turret00" z="1." angle="45"  x="-16" y="8"  cx="10" state="1"/>
 			</sprite> 
 			<program id="main">
 				<speed value="100."/>
 				<program repeat="9">
-					<program repeat="20">
-						<wait time=".025"/>
+					<program repeat="7">
+						<wait time=".075"/>
 						<shoot id="turretr"/>
 						<shoot id="turretr" anglerel="-10"/>
 						<shoot id="turretr" anglerel="10"/>
@@ -18,14 +18,14 @@
 						<shoot id="turretl" anglerel="-10"/>
 						<shoot id="turretl" anglerel="10"/>
 					</program>
-					<positionrel id="turretr" angle="-5"/>
-					<positionrel id="turretl" angle="5"/>
+					<positionrel id="turretr" angle="5"/>
+					<positionrel id="turretl" angle="-5"/>
 				</program>
 				<speed value="0"/>
 				<program repeat="-1">
-                    <wait time=".05"/>
-                    <shoot id="turretr"/>
-                    <shoot id="turretl"/>
+					<wait time=".05"/>
+					<shoot id="turretr" name="bullet00" sprrepeat="0" sprlength="3" sprspeed="5"/>
+					<shoot id="turretl" name="bullet00" sprrepeat="0" sprlength="3" sprspeed="5"/>
 					<positionrel id="turretr" angle="-4"/>
 					<positionrel id="turretl" angle="4"/>
 				</program>
@@ -35,12 +35,12 @@
 			<sprite name="ship00" z="2."/>
 			<program id="main">
 				<speed value="200."/>
-				<program repeat="-1">
-                    <wait time=".4"/>
-                    <shoot anglerel="-30" speed="50"/>
-                    <shoot anglerel="30" speed="50"/>
-                </program>
-            </program>
+				<program repeat="5">
+					<wait time=".4"/>
+					<shoot anglerel="-60" speed="600" name="bullet02"/>
+					<shoot anglerel="60" speed="600" name="bullet02"/>
+				</program>
+			</program>
 		</ship>
 	</ships>
 

@@ -151,7 +151,7 @@ void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afact
     }
 }
 
-void Sprite::draw() const {
+void Sprite::draw(float dt) const {
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
         glTranslatef(x,y,0.0);
@@ -164,7 +164,7 @@ void Sprite::draw() const {
         glTexCoord2f(0.0,0.0); glVertex3f(cx-w/2,cy-h/2,z);
         glTexCoord2f(0.0,1.0); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
-        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
     glPopMatrix();
 }
 
@@ -175,7 +175,7 @@ void Sprite::dump(std::ostream &os,const std::string &indent) const {
 
 StateSprite::StateSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate) : Sprite(id,w,h/nstate,name), nstate(nstate), rh(1./nstate), state(0) {}
 
-void StateSprite::draw() const {
+void StateSprite::draw(float dt) const {
     float ya=rh*state;
     float yb=ya+rh;
     glBindTexture(GL_TEXTURE_2D,id);
@@ -190,7 +190,7 @@ void StateSprite::draw() const {
         glTexCoord2f(0.0,ya); glVertex3f(cx-w/2,cy-h/2,z);
         glTexCoord2f(0.0,yb); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
-        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
     glPopMatrix();
 }
 
@@ -199,9 +199,9 @@ void StateSprite::dump(std::ostream &os,const std::string &indent) const {
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
-AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : Sprite(id,w/nframe,h/nstate,name), nstate(nstate), rw(1./nframe), rh(1./nstate), state(0), nframe(nframe), repeat(nframe), pos(0.), speed(.05) {}
+AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : StateSprite(id,w/nframe,h,name,nstate), rw(1./nframe), nframe(nframe),length(nframe), repeat(true), pos(0.), speed(15.) {}
 
-void AnimatedSprite::draw() const {
+void AnimatedSprite::draw(float dt) const {
     float ya=rh*state;
     float yb=ya+rh;
     float xa=rw*int(pos);
@@ -218,11 +218,11 @@ void AnimatedSprite::draw() const {
         glTexCoord2f(xa,ya); glVertex3f(cx-w/2,cy-h/2,z);
         glTexCoord2f(xa,yb); glVertex3f(cx-w/2,cy+h/2,z);
         glEnd();
-        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw();
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
     glPopMatrix();
 
-    const_cast<float&>(pos)+=speed;
-    if (pos>=repeat) const_cast<float&>(pos)-=repeat;
+    if (pos<length) const_cast<float&>(pos)+=speed*dt;
+    if (pos>=length and repeat) const_cast<float&>(pos)-=length;
 }
 
 void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
