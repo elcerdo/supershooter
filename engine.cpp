@@ -199,7 +199,7 @@ void StateSprite::dump(std::ostream &os,const std::string &indent) const {
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
-AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : StateSprite(id,w/nframe,h,name,nstate), rw(1./nframe), nframe(nframe),length(nframe), repeat(true), pos(0.), speed(15.) {}
+AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe) : StateSprite(id,w/nframe,h,name,nstate), rw(1./nframe), nframe(nframe),length(nframe), repeat(true), pos(0.), speed(10.) {}
 
 void AnimatedSprite::draw(float dt) const {
     float ya=rh*state;

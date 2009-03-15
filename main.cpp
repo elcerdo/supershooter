@@ -13,14 +13,13 @@ public:
         //body->factorx=2.;
         //body->factory=2.;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
-        turrel_left->speed=5.;
+        turrel_left->speed=3.;
         turrel_left->x=-16;
         turrel_left->y=-8;
         turrel_left->cx=10;
         turrel_left->z=1;
         turrel_left->angle=M_PI/180.*15;
         turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
-        turrel_right->speed=5.;
         turrel_right->x=-16;
         turrel_right->y=8;
         turrel_right->cx=10;
@@ -45,12 +44,12 @@ public:
 
         if (shooting and reload<=0) {
             reload+=0.05;
-            BulletManager::get()->shoot_from_sprite(turrel_left,0,300,0);
-            BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300,0);
-            BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300,0);
-            BulletManager::get()->shoot_from_sprite(turrel_right,0,300,0);
-            BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,300,0);
-            BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,300,0);
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,300,0)->sprite)->speed=3.;
         }
 
         if (shooting) { turrel_left->state=1; turrel_right->state=1; }

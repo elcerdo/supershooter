@@ -113,6 +113,7 @@ void CollisionManager::resolve_collision() {
         for (Areas::const_iterator i=areas->begin(); i!=areas->end(); i++) {
             (*i)->colliding.clear();
             std::set_intersection((*i)->colliding_x.begin(),(*i)->colliding_x.end(),(*i)->colliding_y.begin(),(*i)->colliding_y.end(),std::inserter((*i)->colliding,(*i)->colliding.begin()));
+            for (Area::Points::const_iterator j=(*i)->colliding.begin(); j!=(*i)->colliding.end(); j++) if (not (*i)->collide_with(*j)) (*i)->colliding.erase(*j);
         }
 
     }
