@@ -32,8 +32,8 @@ public:
         
         x=&body->x;
         y=&body->y;
-        w=body->w;
-        h=body->h;
+        w=&body->w;
+        h=&body->h;
     }
 
     virtual bool move(float dt) {

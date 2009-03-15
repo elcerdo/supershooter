@@ -7,7 +7,7 @@
 #include <set>
 
 //***********************************************************
-struct Ship : public Area {
+struct Ship : public Rectangle {
     Ship(float health);
     Ship(Sprite *body,float health);
     virtual ~Ship();

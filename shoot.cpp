@@ -11,7 +11,7 @@ using std::endl;
 
 //***********************************************************
 Ship::Ship(float health) : body(NULL), health(health) {}
-Ship::Ship(Sprite *body,float health) : Area(&body->x,&body->y), body(body), health(health) { w=body->w;  h=body->h; }
+Ship::Ship(Sprite *body,float health) : Rectangle(&body->x,&body->y,&body->w,&body->h), body(body), health(health) {}
 Ship::~Ship() { if (body) delete body; }
 void Ship::draw(float dt) const { if (body) body->draw(dt); }
 

@@ -3,14 +3,18 @@
 #include "except.h"
 #include <algorithm>
 
-Point::Point() {}
+Point::Point() : x(NULL), y(NULL) {}
 Point::Point(float *x,float *y) : x(x), y(y) {}
-Area::Area() {}
-Area::Area(float *x,float *y) : x(x), y(y), w(0), h(0) {}
-float Area::left() const { return *x-w/2.; }
-float Area::right() const { return *x+w/2.; }
-float Area::top() const { return *y-h/2.; }
-float Area::bottom() const {return *y+h/2.; }
+Area::Area() : Point() {}
+Area::Area(float *x,float *y) : Point(x,y) {}
+
+Rectangle::Rectangle() : Area(), w(NULL), h(NULL) {}
+Rectangle::Rectangle(float *x,float *y,const float *w,const float *h) : Area(x,y), w(w), h(h) {}
+float Rectangle::left() const { return *x-*w/2.; }
+float Rectangle::right() const { return *x+*w/2.; }
+float Rectangle::top() const { return *y-*h/2.; }
+float Rectangle::bottom() const {return *y+*h/2.; }
+bool Rectangle::collide_with(const Point *point) const { return true; }
 
 
 //***********************************************************

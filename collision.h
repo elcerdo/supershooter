@@ -9,25 +9,35 @@
 struct Point {
     Point();
     Point(float *x,float *y);
-    float *x,*y;
-
     virtual ~Point() {}; //make it polymorphic
+    float *x,*y;
 };
 
-struct Area {
+struct Area : public Point {
     Area();
     Area(float *x,float *y);
 
-    float left() const;
-    float right() const;
-    float top() const;
-    float bottom() const;
+    virtual float left() const=0;
+    virtual float right() const=0;
+    virtual float top() const=0;
+    virtual float bottom() const=0;
+    virtual bool collide_with(const Point *point) const=0;
 
     typedef std::set<Point*> Points;
     Points colliding_x,colliding_y,colliding;
-    float *x,*y,w,h;
+};
 
-    virtual ~Area() {}
+struct Rectangle : public Area {
+    Rectangle();
+    Rectangle(float *x,float *y,const float *w,const float *h);
+
+    virtual float left() const;
+    virtual float right() const;
+    virtual float top() const;
+    virtual float bottom() const;
+    virtual bool collide_with(const Point *point) const;
+
+    const float *w,*h;
 };
 
 //***********************************************************
