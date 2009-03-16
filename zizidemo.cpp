@@ -61,9 +61,9 @@ int main() {
 
         {
         Spawner spawner;
-        Logger logger;
+        Fps fps;
 
-        SdlManager::get()->register_listener(&logger);
+        SdlManager::get()->register_listener(&fps);
         SdlManager::get()->register_listener(&spawner);
         SdlManager::get()->main_loop();
         }

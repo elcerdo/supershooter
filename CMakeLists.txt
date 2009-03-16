@@ -25,6 +25,11 @@ add_executable(zizidemo
 target_link_libraries(zizidemo
     zizi)
 
+add_executable(zizicollision
+    zizicollision.cpp)
+target_link_libraries(zizicollision
+    zizi)
+
 add_executable(supershooter
     main.cpp)
 target_link_libraries(supershooter

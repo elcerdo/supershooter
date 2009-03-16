@@ -33,6 +33,7 @@ public:
     static void init(int w=1024,int h=768, int d=32);
 
     const unsigned char *get_key_state() const;
+    void get_mouse_position(float &x,float &y) const;
 
     void main_loop();
     void register_listener(Listener *listener);

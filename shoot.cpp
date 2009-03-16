@@ -11,9 +11,50 @@ using std::endl;
 
 //***********************************************************
 Ship::Ship(float health) : body(NULL), health(health) {}
-Ship::Ship(Sprite *body,float health) : Rectangle(&body->x,&body->y,&body->w,&body->h), body(body), health(health) {}
-Ship::~Ship() { if (body) delete body; }
-void Ship::draw(float dt) const { if (body) body->draw(dt); }
+Ship::Ship(Sprite *body,float health) : body(body), health(health) {}
+Ship::~Ship() { delete body; }
+void Ship::draw(float dt) const { body->draw(dt); }
+float Ship::get_x() const { return body->x; }
+float Ship::get_y() const { return body->y; }
+float Ship::get_left() const { 
+    float dx0=(body->w*body->factorx*cos(body->angle)+body->h*body->factory*sin(body->angle))/2.;
+    float dx1=(body->w*body->factorx*cos(body->angle)-body->h*body->factory*sin(body->angle))/2.;
+    if (dx0<0) dx0=-dx0;
+    if (dx1<0) dx1=-dx1;
+    return dx0<dx1 ? body->x-dx1 : body->x-dx0;
+}
+float Ship::get_right() const { 
+    float dx0=(body->w*body->factorx*cos(body->angle)-body->h*body->factory*sin(body->angle))/2.;
+    float dx1=(body->w*body->factorx*cos(body->angle)+body->h*body->factory*sin(body->angle))/2.;
+    if (dx0<0) dx0=-dx0;
+    if (dx1<0) dx1=-dx1;
+    return dx0<dx1 ? body->x+dx1 : body->x+dx0;
+}
+float Ship::get_top() const {
+    float dy0=(body->w*body->factorx*sin(body->angle)+body->h*body->factory*cos(body->angle))/2.;
+    float dy1=(-body->w*body->factorx*sin(body->angle)+body->h*body->factory*cos(body->angle))/2.;
+    if (dy0<0) dy0=-dy0;
+    if (dy1<0) dy1=-dy1;
+    return dy0<dy1 ? body->y-dy1 : body->y-dy0;
+}
+float Ship::get_bottom() const {
+    float dy0=(body->w*body->factorx*sin(body->angle)+body->h*body->factory*cos(body->angle))/2.;
+    float dy1=(-body->w*body->factorx*sin(body->angle)+body->h*body->factory*cos(body->angle))/2.;
+    if (dy0<0) dy0=-dy0;
+    if (dy1<0) dy1=-dy1;
+    return dy0<dy1 ? body->y+dy1 : body->y+dy0;
+}
+bool Ship::collide_with(const Point *point) const {
+    float dx=(point->get_x()-body->x);
+    float dy=(point->get_y()-body->y);
+    float lx=(dx*cos(body->angle)+dy*sin(body->angle))*2./body->factorx;
+    if (lx<0) lx=-lx;
+    if (lx>body->w) return false;
+    float ly=(-dx*sin(body->angle)+dy*cos(body->angle))*2./body->factory;
+    if (ly<0) ly=-ly;
+    if (ly>body->h) return false;
+    return true;
+}
 
 static ShipManager *mShipManager=NULL;
 
@@ -73,9 +114,11 @@ void ShipManager::add_ship(Ship *ship,size_t kspace) {
 }
 
 //***********************************************************
-Bullet::Bullet(Sprite *sprite,float angle,float speed,float damage) : Point(&sprite->x,&sprite->y), sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)), damage(damage) { sprite->angle=angle;}
+Bullet::Bullet(Sprite *sprite,float angle,float speed,float damage) : sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)), damage(damage) { sprite->angle=angle;}
 Bullet::~Bullet() { delete sprite; }
-void Bullet::move(float dt) { *x+=dt*vx; *y+=dt*vy; }
+float Bullet::get_x() const { return sprite->x; }
+float Bullet::get_y() const { return sprite->y; }
+void Bullet::move(float dt) { sprite->x+=dt*vx; sprite->y+=dt*vy; }
 
 static BulletManager *mBulletManager=NULL;
 

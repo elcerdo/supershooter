@@ -7,37 +7,21 @@
 #include <iostream>
 
 struct Point {
-    Point();
-    Point(float *x,float *y);
     virtual ~Point() {}; //make it polymorphic
-    float *x,*y;
+
+    virtual float get_x() const=0;
+    virtual float get_y() const=0;
 };
 
 struct Area : public Point {
-    Area();
-    Area(float *x,float *y);
-
-    virtual float left() const=0;
-    virtual float right() const=0;
-    virtual float top() const=0;
-    virtual float bottom() const=0;
+    virtual float get_left() const=0;
+    virtual float get_right() const=0;
+    virtual float get_top() const=0;
+    virtual float get_bottom() const=0;
     virtual bool collide_with(const Point *point) const=0;
 
     typedef std::set<Point*> Points;
     Points colliding_x,colliding_y,colliding;
-};
-
-struct Rectangle : public Area {
-    Rectangle();
-    Rectangle(float *x,float *y,const float *w,const float *h);
-
-    virtual float left() const;
-    virtual float right() const;
-    virtual float top() const;
-    virtual float bottom() const;
-    virtual bool collide_with(const Point *point) const;
-
-    const float *w,*h;
 };
 
 //***********************************************************

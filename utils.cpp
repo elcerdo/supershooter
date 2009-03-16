@@ -6,8 +6,8 @@
 using std::cout;
 using std::endl;
 
-Logger::Logger() : frame(0), update_t(0) {
-    text=SpriteManager::get()->get_text("","alpha00");
+Fps::Fps() : frame(0), update_t(0) {
+    text=SpriteManager::get()->get_text("","font00");
     text->x=10;
     text->y=10;
     text->angle=M_PI/180.*90;
@@ -15,16 +15,12 @@ Logger::Logger() : frame(0), update_t(0) {
     text->factorx=.5;
 
 }
-Logger::~Logger() { delete text; }
+Fps::~Fps() { delete text; }
 
-bool Logger::key_down(SDLKey key) { cout<<"key down"<<endl; return true; };
-bool Logger::key_up(SDLKey key) { cout<<"key up"<<endl; return true; };
-bool Logger::mouse_down(int button,float x,float y) { cout<<"mouse down"<<endl; return true; };
-bool Logger::mouse_up(int button,float x,float y) {  cout<<"mouse up"<<endl; return true; };
-bool Logger::frame_entered(float t,float dt) {
+bool Fps::frame_entered(float t,float dt) {
     text->draw(dt);
     frame++;
-    if (t>update_t+5.) {
+    if (t>update_t+.5) {
         std::stringstream ss;
         ss<<std::fixed<<std::setprecision(0)<<static_cast<float>(frame)/(t-update_t)<<"fps";
         text->update(ss.str());
@@ -34,5 +30,5 @@ bool Logger::frame_entered(float t,float dt) {
     return true;
 }
 
-void Logger::register_self() { frame=0; cout<<"registered"<<endl; };
-void Logger::unregister_self() { frame=0; cout<<"unregistered"<<endl; };
+void Fps::register_self() { frame=0; }
+void Fps::unregister_self() { frame=0; }

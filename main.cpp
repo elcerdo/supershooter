@@ -8,7 +8,7 @@ using std::endl;
 
 class BigShip : public Ship, public Listener {
 public:
-    BigShip() : Ship(100), angle(M_PI), speed(0), shooting(false), reload(0) {
+    BigShip() : Ship(100), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
@@ -29,17 +29,12 @@ public:
 
         body->x=700;
         body->y=300;
-        
-        x=&body->x;
-        y=&body->y;
-        w=&body->w;
-        h=&body->h;
+        body->angle=M_PI;
     }
 
     virtual bool move(float dt) {
-        *x+=dt*speed*cos(angle);
-        *y+=dt*speed*sin(angle);
-        body->angle=angle;
+        //body->x+=dt*speed*cos(angle);
+        //body->y+=dt*speed*sin(angle);
 
         if (reload>0) reload-=dt;
 
@@ -61,21 +56,31 @@ public:
 
 
 protected:
-    virtual bool key_down(SDLKey key) {
-        switch (key) {
-        case SDLK_SPACE:
-            shooting=not shooting; break;
-        }
+    //virtual bool key_down(SDLKey key) {
+    //    switch (key) {
+    //    case SDLK_SPACE:
+    //        shooting=not shooting; break;
+    //    }
+    //    return true;
+    //}
+
+    virtual bool mouse_down(int button, float x,float y) {
+        if (button==1) shooting=true;
         return true;
     }
-
+    virtual bool mouse_up(int button,float x,float y) {
+        if (button==1) shooting=false;
+        return true;
+    }
     virtual bool frame_entered(float t,float dt) {
-        const unsigned char *state=SdlManager::get()->get_key_state();
-        if (state[SDLK_LEFT]) angle-=M_PI/180.*dt*180.;
-        if (state[SDLK_RIGHT]) angle+=M_PI/180.*dt*180.;
-        if (state[SDLK_UP]) speed+=dt*300.;
-        if (state[SDLK_DOWN]) speed-=dt*300.;
-        speed-=speed*1.*dt;
+        //const unsigned char *state=SdlManager::get()->get_key_state();
+        //if (state[SDLK_LEFT]) angle-=M_PI/180.*dt*180.;
+        //if (state[SDLK_RIGHT]) angle+=M_PI/180.*dt*180.;
+        //if (state[SDLK_UP]) speed+=dt*300.;
+        //if (state[SDLK_DOWN]) speed-=dt*300.;
+        //speed-=speed*1.*dt;
+        SdlManager::get()->get_mouse_position(body->x,body->y);
+
 
         float turrel_angle=M_PI/180.*(30.+20.*cos(2*M_PI*.8*t));
         turrel_left->angle=-turrel_angle;
@@ -100,7 +105,7 @@ protected:
     AnimatedSprite *turrel_left;
     AnimatedSprite *turrel_right;
     bool shooting;
-    float angle,speed;
+    //float angle,speed;
     float reload;
 };
     
@@ -133,13 +138,13 @@ std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
 class XmlShip : public Ship {
 public:
     typedef std::map<std::string,Sprite*> Sprites;
-    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug=false) : Ship(aa,health), angle(&aa->angle), sprites(sprites), current(main), t(0), speed(0), wait(0), debug(debug) {}
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug=false) : Ship(aa,health), sprites(sprites), current(main), t(0), speed(0), wait(0), debug(debug) {}
 
     virtual bool move(float dt) {
-        if (*x>SdlManager::get()->width+256 or *x<-256 or *y>SdlManager::get()->height+256 or *y<-256) return false;
+        if (body->x>SdlManager::get()->width+256 or body->x<-256 or body->y>SdlManager::get()->height+256 or body->y<-256) return false;
 
-        *x+=dt*speed*cos(*angle);
-        *y+=dt*speed*sin(*angle);
+        body->x+=dt*speed*cos(body->angle);
+        body->y+=dt*speed*sin(body->angle);
 
         if (debug) if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
 
@@ -152,7 +157,6 @@ public:
         return true;
     }
     bool debug;
-    float *angle;
 protected:
     void exec() {
         if (wait>0) return;
@@ -189,10 +193,10 @@ protected:
                     if (current->QueryValueAttribute("angle",&select->angle)==TIXML_SUCCESS) select->angle*=M_PI/180.;
                     if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
                 } else {
-                    current->QueryValueAttribute("x",x);
-                    current->QueryValueAttribute("y",y);
-                    if (current->QueryValueAttribute("angle",angle)==TIXML_SUCCESS) *angle*=M_PI/180.;
-                    if (debug) cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                    current->QueryValueAttribute("x",&body->x);
+                    current->QueryValueAttribute("y",&body->y);
+                    if (current->QueryValueAttribute("angle",&body->angle)==TIXML_SUCCESS) body->angle*=M_PI/180.;
+                    if (debug) body->dump();
                 }
 
                 current=current->NextSiblingElement();
@@ -214,10 +218,10 @@ protected:
                     select->angle+=_angle;
                     if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
                 } else {
-                    *x+=_x;
-                    *y+=_y;
-                    *angle+=_angle;
-                    if (debug) cout<<" "<<*x<<" "<<*y<<" "<<*angle*180./M_PI<<endl;
+                    body->x+=_x;
+                    body->y+=_y;
+                    body->angle+=_angle;
+                    if (debug) body->dump();
                 }
 
                 current=current->NextSiblingElement();
@@ -327,9 +331,9 @@ public:
         if (not program) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,prgid);
 
         XmlShip *ship=new XmlShip(body,sprites,program,health);
-        *ship->x=x;
-        *ship->y=y;
-        *ship->angle=angle;
+        ship->body->x=x;
+        ship->body->y=y;
+        ship->body->angle=angle;
         ShipManager::get()->add_ship(ship,0); //add as enemy
         return ship;
     }
@@ -378,9 +382,6 @@ protected:
 };
 
 
-
-
-
 int main() {
     try {
         SdlManager::init();
@@ -405,9 +406,9 @@ int main() {
 
             Killer killer;
             BigShip bigship;
-            Logger logger;
+            Fps fps;
             SdlManager::get()->register_listener(&killer);
-            SdlManager::get()->register_listener(&logger);
+            SdlManager::get()->register_listener(&fps);
             SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
         }

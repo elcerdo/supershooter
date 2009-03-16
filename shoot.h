@@ -7,12 +7,19 @@
 #include <set>
 
 //***********************************************************
-struct Ship : public Rectangle {
+struct Ship : public Area {
     Ship(float health);
     Ship(Sprite *body,float health);
     virtual ~Ship();
     virtual bool move(float dt)=0;
     virtual void draw(float dt) const;
+    virtual float get_x() const;
+    virtual float get_y() const;
+    virtual float get_left() const;
+    virtual float get_right() const;
+    virtual float get_top() const;
+    virtual float get_bottom() const;
+    virtual bool collide_with(const Point *point) const;
     Sprite *body;
     float health;
 };
@@ -44,6 +51,8 @@ struct Bullet : public Point {
     Bullet(Sprite *sprite,float angle,float speed,float damage);
     virtual ~Bullet();
     virtual void move(float dt);
+    virtual float get_x() const;
+    virtual float get_y() const;
     Sprite *sprite;
     float vx,vy;
     float damage;

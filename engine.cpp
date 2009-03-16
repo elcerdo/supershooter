@@ -51,6 +51,11 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 }
 
 const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
+void SdlManager::get_mouse_position(float &x,float &y) const {
+    int xx,yy;
+    SDL_GetMouseState(&xx,&yy);
+    x=xx; y=yy;
+}
 void SdlManager::set_background_color(float r,float g,float b) { glClearColor(r,g,b,0); }
 
 SdlManager::~SdlManager() {
@@ -245,6 +250,7 @@ Text::Text(unsigned int id,float w,float h,const std::string &name,const std::st
         StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
         current->state=istate->second;
         current->x=x;
+        current->z=5.;
         x+=w-2.;
     }
 }
@@ -275,6 +281,7 @@ void Text::update(const std::string &str) {
         StateSprite *current=dynamic_cast<StateSprite*>(*ichild);
         current->state=istate->second;
         current->x=x;
+        current->z=5.;
         x+=w-2.;
 
         ichild++;
@@ -290,6 +297,7 @@ void Text::update(const std::string &str) {
         StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
         current->state=istate->second;
         current->x=x;
+        current->z=5.;
         x+=w-2.;
 
         istr++;

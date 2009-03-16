@@ -3,27 +3,13 @@
 #include "except.h"
 #include <algorithm>
 
-Point::Point() : x(NULL), y(NULL) {}
-Point::Point(float *x,float *y) : x(x), y(y) {}
-Area::Area() : Point() {}
-Area::Area(float *x,float *y) : Point(x,y) {}
-
-Rectangle::Rectangle() : Area(), w(NULL), h(NULL) {}
-Rectangle::Rectangle(float *x,float *y,const float *w,const float *h) : Area(x,y), w(w), h(h) {}
-float Rectangle::left() const { return *x-*w/2.; }
-float Rectangle::right() const { return *x+*w/2.; }
-float Rectangle::top() const { return *y-*h/2.; }
-float Rectangle::bottom() const {return *y+*h/2.; }
-bool Rectangle::collide_with(const Point *point) const { return true; }
-
-
 //***********************************************************
-struct OrderX { bool operator()(const Point *a,const Point *b) const { return *a->x < *b->x; } };
-struct OrderY { bool operator()(const Point *a,const Point *b) const { return *a->y < *b->y; } };
-struct OrderL { bool operator()(const Area *a,const Area *b) const { return a->left() < b->left(); } };
-struct OrderB { bool operator()(const Area *a,const Area *b) const { return a->bottom() < b->bottom(); } };
-struct OrderR { bool operator()(const Area *a,const Area *b) const { return a->right() < b->right(); } };
-struct OrderU { bool operator()(const Area *a,const Area *b) const { return a->top() < b->top(); } };
+struct OrderX { bool operator()(const Point *a,const Point *b) const { return a->get_x() < b->get_x(); } };
+struct OrderY { bool operator()(const Point *a,const Point *b) const { return a->get_y() < b->get_y(); } };
+struct OrderL { bool operator()(const Area *a,const Area *b) const { return a->get_left() < b->get_left(); } };
+struct OrderB { bool operator()(const Area *a,const Area *b) const { return a->get_bottom() < b->get_bottom(); } };
+struct OrderR { bool operator()(const Area *a,const Area *b) const { return a->get_right() < b->get_right(); } };
+struct OrderU { bool operator()(const Area *a,const Area *b) const { return a->get_top() < b->get_top(); } };
 
 typedef std::multiset<Point*,OrderX> OrderXPoints;
 typedef std::multiset<Point*,OrderY> OrderYPoints;
@@ -69,11 +55,11 @@ void CollisionManager::resolve_collision() {
             OrderLAreas::const_iterator il=order_l_areas.begin();
             OrderRAreas::const_iterator ir=order_r_areas.begin();
             for (OrderXPoints::const_iterator i=order_x_points.begin(); i!=order_x_points.end(); i++) {
-                while (il!=order_l_areas.end() and (*il)->left()<*(*i)->x) {
+                while (il!=order_l_areas.end() and (*il)->get_left()<(*i)->get_x()) {
                     inside.insert(*il);
                     il++;
                 }
-                while (ir!=order_r_areas.end() and (*ir)->right()<*(*i)->x) {
+                while (ir!=order_r_areas.end() and (*ir)->get_right()<(*i)->get_x()) {
                     inside.erase(*ir);
                     ir++;
                 }
@@ -96,11 +82,11 @@ void CollisionManager::resolve_collision() {
             OrderBAreas::const_iterator ib=order_b_areas.begin();
             OrderUAreas::const_iterator it=order_u_areas.begin();
             for (OrderXPoints::const_iterator i=order_y_points.begin(); i!=order_y_points.end(); i++) {
-                while (it!=order_u_areas.end() and (*it)->top()<*(*i)->y) {
+                while (it!=order_u_areas.end() and (*it)->get_top()<(*i)->get_y()) {
                     inside.insert(*it);
                     it++;
                 }
-                while (ib!=order_b_areas.end() and (*ib)->bottom()<*(*i)->y) {
+                while (ib!=order_b_areas.end() and (*ib)->get_bottom()<(*i)->get_y()) {
                     inside.erase(*ib);
                     ib++;
                 }
