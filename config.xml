@@ -33,18 +33,50 @@
 		</ship>
 		<ship id="basicship" health="10">
 			<sprite name="ship00" z="2."/>
-			<program id="main">
+			<program id="right">
 				<speed value="200."/>
-				<program repeat="5">
+				<program repeat="3">
 					<wait time=".4"/>
 					<shoot anglerel="-40" speed="400" name="bullet02"/>
 					<shoot anglerel="40" speed="400" name="bullet02"/>
+					<positionrel angle="-20"/>
+				</program>
+			</program>
+			<program id="left">
+				<speed value="200."/>
+				<program repeat="3">
+					<wait time=".4"/>
+					<shoot anglerel="-40" speed="400" name="bullet02"/>
+					<shoot anglerel="40" speed="400" name="bullet02"/>
+					<positionrel angle="20"/>
+				</program>
+			</program>
+		</ship>
+		<ship id="crotte" health="1000">
+			<sprite name="logo"/>
+			<program id="main">
+				<speed value="50"/>
+				<wait time="2.5"/>
+				<speed value="0"/>
+				<program repeat="-1">
+					<wait time=".2"/>
+					<shoot name="bullet02" anglerel="0"/>
+					<shoot name="bullet02" anglerel="90"/>
+					<shoot name="bullet02" anglerel="-90"/>
+					<shoot name="bullet02" anglerel="180"/>
+					<positionrel angle="1"/>
 				</program>
 			</program>
 		</ship>
 	</ships>
+	<waves>
+		<wave id="main">
+			<spawn id="bigship00" program="main" x="0.4" y="-.1" angle="90"/>
+			<spawn id="bigship00" program="main" x="0.6" y="-.1" angle="90"/>
+			<line  id="basicship" program="main" startx="0.2" starty="-.1" endx="0.8" endy="-0.1" n="11" angle="90"/>
+			<wait  time="3."/>
+		</wave>
 
-
-
+	</waves>
 </config>
 

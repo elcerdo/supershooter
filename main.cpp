@@ -39,12 +39,12 @@ public:
 
         if (shooting and reload<=0) {
             reload+=0.05;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",10)->sprite)->speed=10.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",10)->sprite)->speed=10.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
         }
 
         if (shooting) { turrel_left->state=1; turrel_right->state=1; }
@@ -131,8 +131,8 @@ int main() {
         {
             ShipManager::get()->launch_enemy_ship("bigship","main",400,0,M_PI/2.);
             ShipManager::get()->launch_enemy_ship("bigship","main",600,0,M_PI/2.);
-            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","main",y,-100,M_PI/2.);
-            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","main",y,-50,M_PI/2.);
+            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","left",y,-100,M_PI/2.);
+            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","right",y,-50,M_PI/2.);
 
             Killer killer;
             BigShip bigship;
