@@ -12,6 +12,7 @@ add_library(zizi
     engine.cpp
     collision.cpp
     shoot.cpp
+    utils.cpp
     except.cpp)
 target_link_libraries(zizi
     boost_regex

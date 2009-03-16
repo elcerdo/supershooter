@@ -130,12 +130,15 @@ static long int nsprites_destroyed=0;
 
 Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), cx(0), cy(0), name(name), parent(NULL) {}
 
-Sprite::~Sprite() { nsprites_destroyed++; while (not children.empty()) { delete children.back(); children.pop_back(); } }
+Sprite::~Sprite() {
+    nsprites_destroyed++;
+    for (Children::const_iterator i=children.begin(); i!=children.end(); i++) delete *i;
+}
 
 Sprite *Sprite::create_child(const std::string &name) {
     Sprite *child=SpriteManager::get()->get_sprite(name);
     child->parent=this;
-    children.push_back(child);
+    children.insert(child);
     return child;
 }
 
@@ -204,7 +207,7 @@ AnimatedSprite::AnimatedSprite(unsigned int id,float w,float h,const std::string
 void AnimatedSprite::draw(float dt) const {
     float ya=rh*state;
     float yb=ya+rh;
-    float xa=rw*int(pos);
+    float xa=rw*static_cast<int>(pos);
     float xb=xa+rw;
     glBindTexture(GL_TEXTURE_2D,id);
     glPushMatrix();
@@ -221,13 +224,77 @@ void AnimatedSprite::draw(float dt) const {
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
     glPopMatrix();
 
-    if (pos<length) const_cast<float&>(pos)+=speed*dt;
-    if (pos>=length and repeat) const_cast<float&>(pos)-=length;
+    if (repeat) {
+        const_cast<float&>(pos)+=speed*dt;
+        while (pos>=length) const_cast<float&>(pos)-=length;
+    } else {
+        if (pos<length-speed*dt) const_cast<float&>(pos)+=speed*dt;
+    }
 }
 
 void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
     os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl;
+}
+
+Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping) : Sprite(id,w,h,name), mapping(mapping) {
+    float x=0;
+    for (std::string::const_iterator istr=str.begin(); istr!=str.end(); istr++) {
+        CharMap::const_iterator istate=mapping.find(*istr);
+        if (istate==mapping.end()) throw Except(Except::SS_SPRITE_MAPPING_ERR,str);
+
+        StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
+        current->state=istate->second;
+        current->x=x;
+        x+=w-2.;
+    }
+}
+
+void Text::draw(float dt) const {
+    glPushMatrix();
+        glTranslatef(x,y,0.0);
+        glRotatef(180./M_PI*angle,0.0,0.0,1.0);
+        glNormal3f(0.0,0.0,1.0);
+        glScalef(factorx,factory,1);
+        for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
+    glPopMatrix();
+}
+void Text::dump(std::ostream &os,const std::string &indent) const {
+    os<<indent<<name<<" ["<<x<<","<<y<<"]"<<" text"<<endl;
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
+}
+
+void Text::update(const std::string &str) {
+    std::string::const_iterator istr=str.begin();
+    Children::const_iterator ichild=children.begin();
+
+    float x=0;
+    while (istr!=str.end() and ichild!=children.end()) {
+        CharMap::const_iterator istate=mapping.find(*istr);
+        if (istate==mapping.end()) throw Except(Except::SS_SPRITE_MAPPING_ERR,str);
+
+        StateSprite *current=dynamic_cast<StateSprite*>(*ichild);
+        current->state=istate->second;
+        current->x=x;
+        x+=w-2.;
+
+        ichild++;
+        istr++;
+    }
+
+    while (ichild!=children.end()) { delete *ichild; children.erase(ichild++); }
+
+    while (istr!=str.end()) {
+        CharMap::const_iterator istate=mapping.find(*istr);
+        if (istate==mapping.end()) throw Except(Except::SS_SPRITE_MAPPING_ERR,str);
+
+        StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
+        current->state=istate->second;
+        current->x=x;
+        x+=w-2.;
+
+        istr++;
+    }
+
 }
 
 //***********************************************************
@@ -243,6 +310,12 @@ void SpriteManager::init(size_t maxid) {
 SpriteManager::SpriteManager(size_t maxid) : maxid(maxid), currentid(0) {
     ids=new unsigned int[maxid];
     glGenTextures(maxid,ids);
+
+    unsigned int k=0;
+    for (char i='a'; i<='z'; i++) mapping[i]=k++;
+    mapping[' ']=k++;
+    for (char i='0'; i<='9'; i++) mapping[i]=k++;
+    mapping['.']=k++;
 }
 
 SpriteManager::~SpriteManager() {
@@ -312,7 +385,15 @@ Sprite *SpriteManager::get_sprite(const std::string &name) const {
         return new AnimatedSprite(match->second.id,match->second.surface->w,match->second.surface->h,match->first,match->second.nstate,match->second.nframe); break;
     }
 
+}
 
+Text *SpriteManager::get_text(const std::string &str,const std::string &name) const {
+    IdMap::const_iterator match=idmap.find(name);
+    if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
+    if (match->second.type==Record::STATIC) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
+
+    nsprites_created++;
+    return new Text(match->second.id,match->second.surface->w,match->second.surface->h,match->first,str,mapping);
 }
 
 void SpriteManager::dump(std::ostream &os) const {

@@ -2,7 +2,6 @@
 #define __ENGINE_H__
 
 #include <map>
-#include <list>
 #include <set>
 #include <string>
 #include <iostream>
@@ -69,7 +68,7 @@ public:
 protected:
     Sprite(unsigned int id,float w,float h,const std::string &name);
 
-    typedef std::list<Sprite*> Children;
+    typedef std::set<Sprite*> Children;
     Sprite *parent;
     Children children;
     
@@ -107,6 +106,18 @@ protected:
     AnimatedSprite(unsigned int id,float w,float h,const std::string &name,unsigned int nstate,unsigned int nframe);
 };
 
+class Text : public Sprite {
+friend class SpriteManager;
+public:
+    virtual void draw(float dt) const;
+    virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
+    void update(const std::string &str);
+protected:
+    typedef std::map<char,unsigned int> CharMap;
+    Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping);
+    const CharMap mapping;
+};
+
 //***********************************************************
 class SpriteManager {
 public:
@@ -118,6 +129,7 @@ public:
     void load_image(const std::string &filename);
     void load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;
+    Text *get_text(const std::string &str,const std::string &name) const;
 protected:
     SpriteManager(size_t maxid);
     ~SpriteManager();
@@ -141,6 +153,7 @@ protected:
     unsigned int *ids;
     size_t currentid,maxid;
     IdMap idmap;
+    Text::CharMap mapping;
 };
 
 #endif

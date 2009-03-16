@@ -37,8 +37,8 @@
 				<speed value="200."/>
 				<program repeat="5">
 					<wait time=".4"/>
-					<shoot anglerel="-60" speed="600" name="bullet02"/>
-					<shoot anglerel="60" speed="600" name="bullet02"/>
+					<shoot anglerel="-40" speed="400" name="bullet02"/>
+					<shoot anglerel="40" speed="400" name="bullet02"/>
 				</program>
 			</program>
 		</ship>

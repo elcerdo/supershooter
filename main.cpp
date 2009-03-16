@@ -1,5 +1,6 @@
 #include "shoot.h"
 #include "except.h"
+#include "utils.h"
 #include <cmath>
 #include <iostream>
 using std::cout;
@@ -404,7 +405,9 @@ int main() {
 
             Killer killer;
             BigShip bigship;
+            Logger logger;
             SdlManager::get()->register_listener(&killer);
+            SdlManager::get()->register_listener(&logger);
             SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
         }
