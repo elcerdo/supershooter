@@ -252,14 +252,26 @@ void ShipManager::unregister_self() {
         ships->clear();
         kspace++;
     }
+    
+    for (Explosions::const_iterator i=explosions.begin(); i!=explosions.end(); i++) delete i->second;
+    explosions.clear();
 }
 
 bool ShipManager::frame_entered(float t,float dt) {
+    for (Explosions::iterator i=explosions.begin(); i!=explosions.end() and t>i->first+1.; i++) { delete i->second; explosions.erase(i); }
+    for (Explosions::const_iterator i=explosions.begin(); i!=explosions.end(); i++) i->second->draw(dt);
 
     size_t kspace=0;
     for (Spaces::iterator ships=spaces.begin(); ships!=spaces.end(); ships++) {
         for (Ships::iterator i=ships->begin(); i!=ships->end(); i++) {
             if ((*i)->health<0 or not (*i)->move(dt)) {
+                Sprite *sprite=SpriteManager::get()->get_sprite("boom00");
+                sprite->x=(*i)->get_x();
+                sprite->y=(*i)->get_y();
+                sprite->z=7.;
+                if (AnimatedSprite *cast=dynamic_cast<AnimatedSprite*>(sprite)) { cast->speed=15.; cast->repeat=false; };
+                explosions.insert(std::make_pair(t,sprite));
+
                 delete *i;
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);

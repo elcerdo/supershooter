@@ -7,6 +7,7 @@
 #include <vector>
 #include <set>
 #include <stack>
+#include <map>
 
 
 //***********************************************************
@@ -63,6 +64,8 @@ protected:
     typedef std::set<Ship*> Ships;
     typedef std::vector<Ships> Spaces;
     Spaces spaces;
+    typedef std::multimap<float,Sprite*> Explosions;
+    Explosions explosions;
 
     long int ncreated;
     long int ndestroyed;
