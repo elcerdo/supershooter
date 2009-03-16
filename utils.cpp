@@ -32,3 +32,14 @@ bool Fps::frame_entered(float t,float dt) {
 
 void Fps::register_self() { frame=0; }
 void Fps::unregister_self() { frame=0; }
+
+bool Killer::key_down(SDLKey key) {
+    switch (key) {
+    case SDLK_ESCAPE:
+        return false; break;
+    }
+    return true;
+}
+
+bool Killer::frame_entered(float t,float dt) { return true; }
+

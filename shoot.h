@@ -3,8 +3,11 @@
 
 #include "engine.h"
 #include "collision.h"
+#include "tinyxml/tinyxml.h"
 #include <vector>
 #include <set>
+#include <stack>
+
 
 //***********************************************************
 struct Ship : public Area {
@@ -24,15 +27,34 @@ struct Ship : public Area {
     float health;
 };
 
+class XmlShip : public Ship {
+public:
+    typedef std::map<std::string,Sprite*> Sprites;
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug=false);
+
+    virtual bool move(float dt);
+    bool debug;
+protected:
+    void exec();
+    float speed,t,wait;
+
+    Sprites sprites;
+    TiXmlElement *current;
+    typedef std::stack<std::pair<TiXmlElement*,int> > ExecutionStack;
+    ExecutionStack stack;
+};
+
 class ShipManager : public Listener {
 public:
     static ShipManager *get();
     static void free();
-    static void init(size_t nspace=2);
+    static void init(size_t nspace=2,const std::string &configfile="config.xml");
 
     void add_ship(Ship *ship,size_t kspace);
+    XmlShip *launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle);
+    void dump(std::ostream &os=std::cout) const;
 protected:
-    ShipManager(size_t nspace=2);
+    ShipManager(size_t nspace,const std::string &configfile);
     ~ShipManager();
 
     virtual bool frame_entered(float t,float dt);
@@ -44,6 +66,13 @@ protected:
 
     long int ncreated;
     long int ndestroyed;
+
+    void xml_assert(bool v) const;
+    Sprite *parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,Sprite *parent=NULL) const;
+    typedef std::map<std::string,TiXmlElement*> ShipNodes;
+    ShipNodes shipnodes;
+
+    TiXmlDocument config;
 };
 
 //***********************************************************

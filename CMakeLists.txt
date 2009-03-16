@@ -16,6 +16,7 @@ add_library(zizi
     except.cpp)
 target_link_libraries(zizi
     boost_regex
+    tinyxml
     ${SDL_LIBRARY}
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
@@ -33,5 +34,4 @@ target_link_libraries(zizicollision
 add_executable(supershooter
     main.cpp)
 target_link_libraries(supershooter
-    tinyxml
     zizi)

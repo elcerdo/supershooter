@@ -2,7 +2,6 @@
 #define __UTILS_H__
 
 #include "engine.h"
-#include <cmath>
 
 class Fps : public Listener {
 public:
@@ -15,6 +14,12 @@ protected:
     int frame;
     float update_t;
     Text *text;
+};
+
+class Killer : public Listener {
+protected:
+    virtual bool key_down(SDLKey key);
+    virtual bool frame_entered(float t,float dt);
 };
 
 #endif
