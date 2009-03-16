@@ -2,7 +2,7 @@
 <config>
 	<ships>
 		<ship health="20" id="bigship">
-			<sprite name="bigship00" z="-1." x="50" y="300">
+			<sprite name="bigship00" z="-1." angle="90">
 				<sprite id="turretr" name="turret00" z="1." angle="-45" x="-16" y="-8" cx="10" state="1"/>
 				<sprite id="turretl" name="turret00" z="1." angle="45"  x="-16" y="8"  cx="10" state="1"/>
 			</sprite> 

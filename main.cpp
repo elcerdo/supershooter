@@ -14,22 +14,21 @@ public:
         //body->factorx=2.;
         //body->factory=2.;
         turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
-        turrel_left->speed=3.;
         turrel_left->x=-16;
         turrel_left->y=-8;
         turrel_left->cx=10;
         turrel_left->z=1;
-        turrel_left->angle=M_PI/180.*15;
+        turrel_left->angle=-M_PI/180.*15;
         turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
         turrel_right->x=-16;
         turrel_right->y=8;
         turrel_right->cx=10;
         turrel_right->z=1;
-        turrel_right->angle=-M_PI/180.*15;
+        turrel_right->angle=M_PI/180.*15;
 
         body->x=700;
         body->y=300;
-        body->angle=M_PI;
+        body->angle=-M_PI/2.;
     }
 
     virtual bool move(float dt) {
@@ -40,12 +39,12 @@ public:
 
         if (shooting and reload<=0) {
             reload+=0.05;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,300,0)->sprite)->speed=3.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,300,0)->sprite)->speed=3.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,300,0)->sprite)->speed=3.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,300,0)->sprite)->speed=3.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,300,0)->sprite)->speed=3.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,300,0)->sprite)->speed=3.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=10.;
         }
 
         if (shooting) { turrel_left->state=1; turrel_right->state=1; }
@@ -66,6 +65,8 @@ protected:
 
     virtual bool mouse_down(int button, float x,float y) {
         if (button==1) shooting=true;
+        else if (button==4) { turrel_left->angle+=M_PI/180.*5; turrel_right->angle-=M_PI/180.*5.; }
+        else if (button==5) { turrel_left->angle-=M_PI/180.*5; turrel_right->angle+=M_PI/180.*5.; }
         return true;
     }
     virtual bool mouse_up(int button,float x,float y) {
@@ -82,9 +83,9 @@ protected:
         SdlManager::get()->get_mouse_position(body->x,body->y);
 
 
-        float turrel_angle=M_PI/180.*(30.+20.*cos(2*M_PI*.8*t));
-        turrel_left->angle=-turrel_angle;
-        turrel_right->angle=turrel_angle;
+        //float turrel_angle=M_PI/180.*(30.+20.*cos(2*M_PI*.8*t));
+        //turrel_left->angle=-turrel_angle;
+        //turrel_right->angle=turrel_angle;
 
         move(dt);
         draw(dt);
@@ -399,10 +400,10 @@ int main() {
         {
             XmlEnemies aaa("config.xml");
             aaa.dump();
-            aaa.launch_ship("bigship","main",0,300,0);
-            aaa.launch_ship("bigship","main",0,400,0);
-            for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",0,y,0);
-            for (float y=100; y<=600; y+=50) aaa.launch_ship("basicship","main",-50,y,0);
+            aaa.launch_ship("bigship","main",400,0,M_PI/2.);
+            aaa.launch_ship("bigship","main",600,0,M_PI/2.);
+            for (float y=200; y<=800; y+=50) aaa.launch_ship("basicship","main",y,-100,M_PI/2.);
+            for (float y=200; y<=800; y+=50) aaa.launch_ship("basicship","main",y,-50,M_PI/2.);
 
             Killer killer;
             BigShip bigship;

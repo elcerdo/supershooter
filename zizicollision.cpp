@@ -32,7 +32,6 @@ protected:
         case 1:
             aa->body->x=x; aa->body->y=y; break;
         case 3:
-            cout<<"prout"<<endl;
             BulletManager::get()->shoot(x,y,0,0,0,"bullet03"); break;
         case 4:
             aa->body->angle+=M_PI/180.*10.; break;
@@ -50,8 +49,8 @@ protected:
         aa->body->factorx=2.;
         aa->body->factory=.5;
         aa->body->angle=M_PI/180.*90.;
-        aa->body->x=288;
-        aa->body->y=288;
+        aa->body->x=296;
+        aa->body->y=296;
         ShipManager::get()->add_ship(aa,0);
     }
 
