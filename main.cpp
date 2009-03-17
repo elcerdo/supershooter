@@ -1,14 +1,21 @@
 #include "shoot.h"
 #include "except.h"
 #include "utils.h"
+#include "message.h"
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 using std::cout;
 using std::endl;
 
 class BigShip : public Ship, public Listener {
 public:
     BigShip() : Ship(100), shooting(false), reload(0) {
+        life=SpriteManager::get()->get_text("life","font00");
+        life->x=16;
+        life->y=SdlManager::get()->height-16;
+
         body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
@@ -30,8 +37,13 @@ public:
         body->y=300;
         body->angle=-M_PI/2.;
     }
+    ~BigShip() { delete life; }
 
     virtual bool move(float dt) {
+        std::stringstream ss;
+        ss<<std::fixed<<std::setprecision(0)<<health;
+        life->update(ss.str());
+
         //body->x+=dt*speed*cos(angle);
         //body->y+=dt*speed*sin(angle);
 
@@ -51,6 +63,10 @@ public:
         else { turrel_left->state=0; turrel_right->state=0; }
 
         return true;
+    }
+    virtual void draw(float dt) const {
+        body->draw(dt);
+        life->draw(dt);
     }
 
 
@@ -105,45 +121,66 @@ protected:
 
     AnimatedSprite *turrel_left;
     AnimatedSprite *turrel_right;
+    Text *life;
     bool shooting;
     //float angle,speed;
     float reload;
 };
     
 
+class Pusher : public Listener {
+protected:
+    virtual bool key_down(SDLKey key) {
+        switch (key) {
+        case SDLK_SPACE:
+            ShipManager::get()->schedule_wave("mainwave"); break;
+        }
+        return true;
+    }
+    virtual bool frame_entered(float t,float dt) { return true; }
+};
+
 
 int main() {
     try {
         SdlManager::init();
-        SpriteManager::init();
-        CollisionManager::init();
-        BulletManager::init();
-        ShipManager::init();
+        SdlManager::get()->set_background_color(.5,.6,.7);
 
+        SpriteManager::init();
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump();
 
-        SdlManager::get()->register_listener(BulletManager::get());
-        SdlManager::get()->register_listener(ShipManager::get());
-        SdlManager::get()->set_background_color(.5,.6,.7);
+        CollisionManager::init();
 
+        MessageManager::init();
+        SdlManager::get()->register_listener(MessageManager::get());
+
+        BulletManager::init();
+        SdlManager::get()->register_listener(BulletManager::get());
+
+        ShipManager::init();
+        SdlManager::get()->register_listener(ShipManager::get());
         ShipManager::get()->dump();
         {
-            ShipManager::get()->launch_enemy_ship("bigship","main",400,0,M_PI/2.);
-            ShipManager::get()->launch_enemy_ship("bigship","main",600,0,M_PI/2.);
-            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","left",y,-100,M_PI/2.);
-            for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","right",y,-50,M_PI/2.);
+            //ShipManager::get()->launch_enemy_ship("bigship","main",400,0,M_PI/2.);
+            //ShipManager::get()->launch_enemy_ship("bigship","main",600,0,M_PI/2.);
+            //XmlShip *aa;
+            //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","left",y,-100,M_PI/2.);
+            //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","right",y,-50,M_PI/2.);
 
             Killer killer;
             BigShip bigship;
             Fps fps;
+            Pusher pusher;
             SdlManager::get()->register_listener(&killer);
             SdlManager::get()->register_listener(&fps);
+            SdlManager::get()->register_listener(&pusher);
             SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
         }
         ShipManager::free();
         BulletManager::free();
+        MessageManager::free();
         CollisionManager::free();
         SpriteManager::free();
         SdlManager::free();

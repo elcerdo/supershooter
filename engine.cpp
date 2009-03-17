@@ -40,7 +40,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
 	glHint(GL_PERSPECTIVE_CORRECTION_HINT, GL_NICEST);// Really Nice Perspective Calculations
     glEnable(GL_ALPHA_TEST);
-    glAlphaFunc(GL_GREATER,0.5);
+    glAlphaFunc(GL_GREATER,0.05);
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -133,7 +133,7 @@ void SdlManager::main_loop() {
 static long int nsprites_created=0;
 static long int nsprites_destroyed=0;
 
-Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), cx(0), cy(0), name(name), parent(NULL) {}
+Sprite::Sprite(unsigned int id,float w,float h,const std::string &name) : id(id), x(0), y(0), z(0), angle(0), factorx(1), factory(1), w(w), h(h), cx(0), cy(0), name(name), parent(NULL), alpha(1.) {}
 
 Sprite::~Sprite() {
     nsprites_destroyed++;
@@ -166,6 +166,7 @@ void Sprite::draw(float dt) const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glScalef(factorx,factory,1);
+        glColor4f(1,1,1,alpha);
         glBegin(GL_QUADS);
         glTexCoord2f(1.0,1.0); glVertex3f(cx+w/2,cy+h/2,z);
         glTexCoord2f(1.0,0.0); glVertex3f(cx+w/2,cy-h/2,z);
@@ -192,6 +193,7 @@ void StateSprite::draw(float dt) const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glScalef(factorx,factory,1);
+        glColor4f(1,1,1,alpha);
         glBegin(GL_QUADS);
         glTexCoord2f(1.0,yb); glVertex3f(cx+w/2,cy+h/2,z);
         glTexCoord2f(1.0,ya); glVertex3f(cx+w/2,cy-h/2,z);
@@ -220,6 +222,7 @@ void AnimatedSprite::draw(float dt) const {
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
         glNormal3f(0.0,0.0,1.0);
         glScalef(factorx,factory,1);
+        glColor4f(1,1,1,alpha);
         glBegin(GL_QUADS);
         glTexCoord2f(xb,yb); glVertex3f(cx+w/2,cy+h/2,z);
         glTexCoord2f(xb,ya); glVertex3f(cx+w/2,cy-h/2,z);
@@ -241,7 +244,7 @@ void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
     os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl;
 }
 
-Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping) : Sprite(id,w,h,name), mapping(mapping) {
+Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping, bool right) : Sprite(id,w,h,name), mapping(mapping), right(right) {
     float x=0;
     for (std::string::const_iterator istr=str.begin(); istr!=str.end(); istr++) {
         CharMap::const_iterator istate=mapping.find(*istr);
@@ -251,23 +254,35 @@ Text::Text(unsigned int id,float w,float h,const std::string &name,const std::st
         current->state=istate->second;
         current->x=x;
         current->z=5.;
+        current->alpha=alpha;
         x+=w-2.;
     }
+
+    if (right) align_right();
 }
 
 void Text::draw(float dt) const {
     glPushMatrix();
         glTranslatef(x,y,0.0);
         glRotatef(180./M_PI*angle,0.0,0.0,1.0);
-        glNormal3f(0.0,0.0,1.0);
         glScalef(factorx,factory,1);
+        glTranslatef(cx,cy,0.0);
         for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->draw(dt);
     glPopMatrix();
 }
+
 void Text::dump(std::ostream &os,const std::string &indent) const {
     os<<indent<<name<<" ["<<x<<","<<y<<"]"<<" text"<<endl;
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
+
+void Text::align_right() {
+    //cx=w-2.;
+    //for (Children::const_iterator i=children.begin(); i!=children.end(); i++) cx-=(*i)->w-2.;
+    cx=(w-2.)*(1.-children.size());
+}
+
+void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
 
 void Text::update(const std::string &str) {
     std::string::const_iterator istr=str.begin();
@@ -282,6 +297,7 @@ void Text::update(const std::string &str) {
         current->state=istate->second;
         current->x=x;
         current->z=5.;
+        current->alpha=alpha;
         x+=w-2.;
 
         ichild++;
@@ -298,11 +314,13 @@ void Text::update(const std::string &str) {
         current->state=istate->second;
         current->x=x;
         current->z=5.;
+        current->alpha=alpha;
         x+=w-2.;
 
         istr++;
     }
 
+    if (right) align_right();
 }
 
 //***********************************************************
@@ -321,9 +339,18 @@ SpriteManager::SpriteManager(size_t maxid) : maxid(maxid), currentid(0) {
 
     unsigned int k=0;
     for (char i='a'; i<='z'; i++) mapping[i]=k++;
+    k=0;
+    for (char i='A'; i<='Z'; i++) mapping[i]=k++;
     mapping[' ']=k++;
     for (char i='0'; i<='9'; i++) mapping[i]=k++;
     mapping['.']=k++;
+    mapping['-']=k++;
+    mapping['[']=k;
+    mapping['(']=k++;
+    mapping[']']=k;
+    mapping[')']=k++;
+    mapping['|']=k++;
+    mapping['=']=k++;
 }
 
 SpriteManager::~SpriteManager() {
@@ -395,13 +422,13 @@ Sprite *SpriteManager::get_sprite(const std::string &name) const {
 
 }
 
-Text *SpriteManager::get_text(const std::string &str,const std::string &name) const {
+Text *SpriteManager::get_text(const std::string &str,const std::string &name,bool right) const {
     IdMap::const_iterator match=idmap.find(name);
     if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
     if (match->second.type==Record::STATIC) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
 
     nsprites_created++;
-    return new Text(match->second.id,match->second.surface->w,match->second.surface->h,match->first,str,mapping);
+    return new Text(match->second.id,match->second.surface->w,match->second.surface->h,match->first,str,mapping,right);
 }
 
 void SpriteManager::dump(std::ostream &os) const {

@@ -37,7 +37,8 @@ public:
     bool debug;
 protected:
     void exec();
-    float speed,t,wait;
+    float speed,wait;
+    float t;
 
     Sprites sprites;
     TiXmlElement *current;
@@ -52,6 +53,7 @@ public:
     static void init(size_t nspace=2,const std::string &configfile="config.xml");
 
     void add_ship(Ship *ship,size_t kspace);
+    void schedule_wave(const std::string &id);
     XmlShip *launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle);
     void dump(std::ostream &os=std::cout) const;
 protected:
@@ -72,10 +74,17 @@ protected:
 
     void xml_assert(bool v) const;
     Sprite *parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,Sprite *parent=NULL) const;
-    typedef std::map<std::string,TiXmlElement*> ShipNodes;
-    ShipNodes shipnodes;
+    typedef std::map<std::string,TiXmlElement*> NodeMap;
+    NodeMap shipnodes;
+    NodeMap wavenodes;
 
     TiXmlDocument config;
+
+    void exec();
+    typedef std::deque<std::pair<TiXmlElement*,int> > ExecutionStack;
+    ExecutionStack stack;
+    TiXmlElement *current;
+    float wait;
 };
 
 //***********************************************************

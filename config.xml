@@ -9,8 +9,8 @@
 			<program id="main">
 				<speed value="100."/>
 				<program repeat="9">
-					<program repeat="7">
-						<wait time=".075"/>
+					<program repeat="4">
+						<wait time=".1"/>
 						<shoot id="turretr"/>
 						<shoot id="turretr" anglerel="-10"/>
 						<shoot id="turretr" anglerel="10"/>
@@ -35,19 +35,19 @@
 			<sprite name="ship00" z="2."/>
 			<program id="right">
 				<speed value="200."/>
+				<wait time=".8"/>
 				<program repeat="3">
 					<wait time=".4"/>
-					<shoot anglerel="-40" speed="400" name="bullet02"/>
-					<shoot anglerel="40" speed="400" name="bullet02"/>
+					<shoot speed="400" name="bullet02"/>
 					<positionrel angle="-20"/>
 				</program>
 			</program>
 			<program id="left">
 				<speed value="200."/>
+				<wait time=".8"/>
 				<program repeat="3">
 					<wait time=".4"/>
-					<shoot anglerel="-40" speed="400" name="bullet02"/>
-					<shoot anglerel="40" speed="400" name="bullet02"/>
+					<shoot speed="400" name="bullet02"/>
 					<positionrel angle="20"/>
 				</program>
 			</program>
@@ -70,13 +70,21 @@
 		</ship>
 	</ships>
 	<waves>
-		<wave id="main">
-			<spawn id="bigship00" program="main" x="0.4" y="-.1" angle="90"/>
-			<spawn id="bigship00" program="main" x="0.6" y="-.1" angle="90"/>
-			<line  id="basicship" program="main" startx="0.2" starty="-.1" endx="0.8" endy="-0.1" n="11" angle="90"/>
-			<wait  time="3."/>
+		<wave id="mainwave" repeat="10">
+			<line  id="basicship" program="left" startx="0.2" starty="-.2" endx="0.5" endy="-0.1" n="5" angle="90"/>
+			<line  id="basicship" program="right" startx="0.5" starty="-.1" endx="0.8" endy="-0.2" n="5" angle="90"/>
+			<wave repeat="2">
+				<spawn id="bigship" program="main" x="0.45" angle="95"/>
+				<spawn id="bigship" program="main" x="0.55" angle="85"/>
+			</wave>
+			<wait  time="2."/>
+			<spawn id="bigship" program="main" x="0.35" y="-0.1" angle="95"/>
+			<spawn id="bigship" program="main" x="0.65" y="-0.1" angle="85"/>
+			<wait  time="2."/>
+			<spawn id="bigship" program="main" x="0.25" y="-0.2" angle="95"/>
+			<spawn id="bigship" program="main" x="0.75" y="-0.2" angle="85"/>
+			<wait  time="2."/>
 		</wave>
-
 	</waves>
 </config>
 

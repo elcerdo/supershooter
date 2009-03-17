@@ -64,7 +64,7 @@ public:
 
     virtual ~Sprite();
 
-    float x,y,z,angle,factorx,factory,cx,cy;
+    float x,y,z,alpha,angle,factorx,factory,cx,cy;
     const float w,h;
 protected:
     Sprite(unsigned int id,float w,float h,const std::string &name);
@@ -113,9 +113,12 @@ public:
     virtual void draw(float dt) const;
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     void update(const std::string &str);
+    void update_alpha();
+    bool right;
 protected:
     typedef std::map<char,unsigned int> CharMap;
-    Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping);
+    Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping,bool right);
+    void align_right();
     const CharMap mapping;
 };
 
@@ -130,7 +133,7 @@ public:
     void load_image(const std::string &filename);
     void load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;
-    Text *get_text(const std::string &str,const std::string &name) const;
+    Text *get_text(const std::string &str,const std::string &name,bool right=false) const;
 protected:
     SpriteManager(size_t maxid);
     ~SpriteManager();

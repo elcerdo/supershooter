@@ -1,7 +1,9 @@
 #include "shoot.h"
 
 #include <cmath>
+#include <sstream>
 #include "collision.h"
+#include "message.h"
 #include "except.h"
 #include <iostream>
 #include <algorithm>
@@ -13,8 +15,8 @@ std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
     if (elem) {
         os<<"["<<elem->Value();
         TiXmlAttribute *att=const_cast<TiXmlElement*>(elem)->FirstAttribute();
-        if (att) { cout<<"|"<<att->Name(); att=att->Next(); }
-        while (att) { os<<" "<<att->Name(); att=att->Next(); }
+        if (att) { os<<"|"<<att->Name(); if (att->Value()) os<<"="<<att->Value(); att=att->Next(); }
+        while (att) { os<<" "<<att->Name(); if (att->Value()) os<<"="<<att->Value(); att=att->Next(); }
         return os<<"]";
     }
     return os<<"[NULL]";
@@ -70,18 +72,18 @@ bool Ship::collide_with(const Point *point) const {
 XmlShip::XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug) : Ship(aa,health), sprites(sprites), current(main), t(0), speed(0), wait(0), debug(debug) {}
 
 bool XmlShip::move(float dt) {
-    if (body->x>SdlManager::get()->width+256 or body->x<-256 or body->y>SdlManager::get()->height+256 or body->y<-256) return false;
+    if (body->x>SdlManager::get()->width+512 or body->x<-512 or body->y>SdlManager::get()->height+512 or body->y<-512) return false;
 
     body->x+=dt*speed*cos(body->angle);
     body->y+=dt*speed*sin(body->angle);
 
-    if (debug) if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
+    //if (debug) if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
 
     exec();
 
     if (wait>0) wait-=dt;
     if (wait<0) wait=0;
-    t+=dt;
+    //t+=dt;
 
     return true;
 }
@@ -186,7 +188,7 @@ void XmlShip::exec() {
             if (debug) cout<<" "<<speed<<endl;
             current=current->NextSiblingElement();
         } else {
-            if (debug) cout<<"unknow order "<<current<<endl;
+            std::cerr<<"unknow ship order "<<current<<endl;
             current=current->NextSiblingElement();
         }
     } else if (not stack.empty()) {
@@ -200,7 +202,8 @@ void XmlShip::exec() {
             stack.push(top);
         } else {
             if (debug) cout<<"returning from "<<top.first<<endl;
-            current=top.first->NextSiblingElement();
+            if (not stack.empty()) current=top.first->NextSiblingElement();
+            else current=NULL;
         }
 
     } 
@@ -218,7 +221,7 @@ void ShipManager::init(size_t nspace,const std::string &configfile) {
     mShipManager=new ShipManager(nspace,configfile);
 }
 
-ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(nspace), ncreated(0), ndestroyed(0) {
+ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(nspace), ncreated(0), ndestroyed(0), current(NULL), wait(0) {
     xml_assert(config.LoadFile(configfile));
 
     TiXmlElement *root=config.FirstChildElement("config");
@@ -232,6 +235,13 @@ ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(n
         shipnodes[id]=ship;
     }
 
+    for (TiXmlElement *waves=root->FirstChildElement("waves"); waves; waves=waves->NextSiblingElement("waves"))
+    for (TiXmlElement *wave=waves->FirstChildElement("wave"); wave; wave=wave->NextSiblingElement("wave")) {
+        std::string id;
+        xml_assert(wave->QueryValueAttribute("id",&id)==TIXML_SUCCESS);
+        if (wavenodes.find(id)!=wavenodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR,id);
+        wavenodes[id]=wave;
+    }
 }
 
 ShipManager::~ShipManager() {
@@ -283,8 +293,97 @@ bool ShipManager::frame_entered(float t,float dt) {
         kspace++;
     }
 
+    if (wait>0) wait-=dt;
+    if (wait<0) wait=0;
+
+    exec();
     return true;
 }
+
+void ShipManager::exec() {
+    if (wait>0) return;
+
+    if (current) {
+        if (current->ValueStr()=="wave") {
+            int repeat=1;
+            current->QueryValueAttribute("repeat",&repeat);
+            stack.push_front(std::make_pair(current,repeat));
+            current=current->FirstChildElement();
+        } else if (current->ValueStr()=="spawn") {
+            std::string shipid,prgid;
+            float x=.5,y=-.05,angle=90;
+            current->QueryValueAttribute("id",&shipid);
+            current->QueryValueAttribute("program",&prgid);
+            current->QueryValueAttribute("x",&x);
+            current->QueryValueAttribute("y",&y);
+            current->QueryValueAttribute("angle",&angle);
+            x*=SdlManager::get()->width;
+            y*=SdlManager::get()->height;
+            angle*=M_PI/180.;
+            launch_enemy_ship(shipid,prgid,x,y,angle);
+
+            current=current->NextSiblingElement();
+        } else if (current->ValueStr()=="line") {
+            std::string shipid,prgid;
+            float sx=.25,sy=-.05;
+            float ex=.25,ey=-.05;
+            float angle=90;
+            unsigned int n=10;
+            current->QueryValueAttribute("id",&shipid);
+            current->QueryValueAttribute("program",&prgid);
+            current->QueryValueAttribute("startx",&sx);
+            current->QueryValueAttribute("starty",&sy);
+            current->QueryValueAttribute("endx",&ex);
+            current->QueryValueAttribute("endy",&ey);
+            current->QueryValueAttribute("n",&n);
+            current->QueryValueAttribute("angle",&angle);
+            sx*=SdlManager::get()->width;
+            sy*=SdlManager::get()->height;
+            ex*=SdlManager::get()->width;
+            ey*=SdlManager::get()->height;
+            angle*=M_PI/180.;
+            for (unsigned int k=0; k<n; k++) {
+                float x=sx+(ex-sx)*static_cast<float>(k)/(n-1.);
+                float y=sy+(ey-sy)*static_cast<float>(k)/(n-1.);
+                launch_enemy_ship(shipid,prgid,x,y,angle);
+            }
+
+            current=current->NextSiblingElement();
+        } else if (current->ValueStr()=="wait") {
+            float time=1.;
+            current->QueryValueAttribute("time",&time);
+            wait=time;
+            current=current->NextSiblingElement();
+        } else {
+            std::cerr<<"unknow wave order "<<current<<endl;
+            current=current->NextSiblingElement();
+        }
+    } else if (not stack.empty()) {
+        ExecutionStack::value_type top=stack.front();
+        stack.pop_front();
+
+        top.second--;
+        if (top.second) {
+            std::stringstream message;
+            std::string prg;
+            top.first->QueryValueAttribute("id",&prg);
+            if (not prg.empty()) {
+                message<<"entering "<<prg<<" ("<<top.second-1<<" remaining)";
+                MessageManager::get()->add_message(message.str());
+            }
+
+            current=top.first->FirstChildElement();
+            stack.push_front(top);
+        } else {
+            if (not stack.empty()) current=top.first->NextSiblingElement();
+            else current=NULL;
+            if (not current) MessageManager::get()->add_message("end of wave");
+        }
+
+    } 
+
+    if (current or not stack.empty()) exec();
+};
 
 void ShipManager::add_ship(Ship *ship,size_t kspace) {
     spaces[kspace].insert(ship);
@@ -293,8 +392,20 @@ void ShipManager::add_ship(Ship *ship,size_t kspace) {
     ncreated++;
 }
 
+void ShipManager::schedule_wave(const std::string &id) {
+    NodeMap::iterator foo=wavenodes.find(id);
+    if (foo==wavenodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
+
+    int repeat=1;
+    foo->second->QueryValueAttribute("repeat",&repeat);
+    repeat++; //wave is popped one time before being executed
+    stack.push_back(std::make_pair(foo->second,repeat));
+}
+
+
+
 XmlShip *ShipManager::launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle) {
-    ShipNodes::iterator foo=shipnodes.find(id);
+    NodeMap::iterator foo=shipnodes.find(id);
     if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
 
     float health;
@@ -355,10 +466,15 @@ Sprite *ShipManager::parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,S
 }
 
 void ShipManager::dump(std::ostream &os) const {
-    os<<shipnodes.size()<<" ships"<<endl;
+    os<<shipnodes.size()<<" ships, "<<wavenodes.size()<<" waves"<<endl;
 }
 
-void ShipManager::xml_assert(bool v) const { if (not v) throw Except(Except::SS_XML_PARSING_ERR,config.ErrorDesc()); }
+void ShipManager::xml_assert(bool v) const {
+    if (v) return;
+    std::stringstream ss;
+    ss<<config.ErrorDesc()<<" col="<<config.ErrorCol()<<" row="<<config.ErrorRow();
+    throw Except(Except::SS_XML_PARSING_ERR,ss.str());
+}
 
 //***********************************************************
 Bullet::Bullet(Sprite *sprite,float angle,float speed,float damage) : sprite(sprite), vx(speed*cos(angle)), vy(speed*sin(angle)), damage(damage) { sprite->angle=angle;}
@@ -459,7 +575,7 @@ void BulletManager::move(float dt) {
         for (Bullets::iterator i=bullets.begin(); i!=bullets.end(); i++) {
             Bullet *bullet=*i;
             bullet->move(dt);
-            if (bullet->sprite->x<-20 or bullet->sprite->x>SdlManager::get()->width+20 or bullet->sprite->y<-20 or bullet->sprite->y>SdlManager::get()->height+20) {
+            if (bullet->sprite->x<-10 or bullet->sprite->x>SdlManager::get()->width+10 or bullet->sprite->y<-10 or bullet->sprite->y>SdlManager::get()->height+10) {
                 delete bullet;
                 bullets.erase(i);
                 CollisionManager::get()->spaces[kspace].first.erase(bullet);

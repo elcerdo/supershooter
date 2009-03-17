@@ -11,6 +11,7 @@ subdirs(tinyxml)
 add_library(zizi
     engine.cpp
     collision.cpp
+    message.cpp
     shoot.cpp
     utils.cpp
     except.cpp)
