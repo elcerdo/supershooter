@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+<!DOCTYPE config SYSTEM "config.dtd">
 <config>
 	<ships>
 		<ship health="20" id="bigship">

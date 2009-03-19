@@ -1,0 +1,78 @@
+<!ELEMENT config (ships|waves)*>
+
+<!ELEMENT ships (ship*)>
+<!ELEMENT ship (sprite,program+)>
+<!ATTLIST ship 
+	health CDATA #REQUIRED
+	id CDATA #REQUIRED>
+
+<!ELEMENT sprite (sprite*)>
+<!ATTLIST sprite
+	name CDATA #REQUIRED
+	id CDATA #IMPLIED
+	state CDATA #IMPLIED
+	speed CDATA #IMPLIED
+	repeat (0|1) #IMPLIED
+	length CDATA #IMPLIED
+	angle CDATA #IMPLIED
+	x CDATA #IMPLIED
+	y CDATA #IMPLIED
+	z CDATA #IMPLIED
+	cx CDATA #IMPLIED
+	cy CDATA #IMPLIED>
+
+<!ELEMENT program (speed|position|wait|shoot|positionrel|program)*>
+<!ATTLIST program
+	id CDATA #IMPLIED
+	repeat CDATA #IMPLIED>
+<!ELEMENT speed EMPTY>
+<!ATTLIST speed
+	value CDATA #IMPLIED>
+<!ELEMENT shoot EMPTY>
+<!ATTLIST shoot
+	name CDATA #IMPLIED
+	id CDATA #IMPLIED
+	anglerel CDATA #IMPLIED
+	speed CDATA #IMPLIED
+	sprspeed CDATA #IMPLIED
+	sprrepeat (0|1) #IMPLIED
+	sprlength CDATA #IMPLIED>
+<!ELEMENT position EMPTY>
+<!ATTLIST position
+	id CDATA #IMPLIED
+	x CDATA #IMPLIED
+	y CDATA #IMPLIED
+	angle CDATA #IMPLIED>
+<!ELEMENT positionrel EMPTY>
+<!ATTLIST positionrel
+	id CDATA #IMPLIED
+	x CDATA #IMPLIED
+	y CDATA #IMPLIED
+	angle CDATA #IMPLIED>
+
+<!ELEMENT waves (wave*)>
+<!ELEMENT wave (line|spawn|wait|wave)*>
+<!ATTLIST wave
+	id CDATA #IMPLIED
+	repeat CDATA #IMPLIED>
+<!ELEMENT line EMPTY>
+<!ATTLIST line
+	id CDATA #REQUIRED
+	program CDATA #REQUIRED
+	startx CDATA #IMPLIED
+	starty CDATA #IMPLIED
+	endx CDATA #IMPLIED
+	endy CDATA #IMPLIED
+	n CDATA #IMPLIED
+	angle CDATA #IMPLIED>
+<!ELEMENT spawn EMPTY>
+<!ATTLIST spawn
+	id CDATA #REQUIRED
+	program CDATA #REQUIRED
+	x CDATA #IMPLIED
+	y CDATA #IMPLIED
+	angle CDATA #IMPLIED>
+<!ELEMENT wait EMPTY>
+<!ATTLIST wait
+	time CDATA #IMPLIED>
+
