@@ -163,7 +163,15 @@ public:
 protected:
     virtual bool key_down(SDLKey key) {
         if (key==SDLK_ESCAPE and state==IN_MENU) return false;
-        if (key==SDLK_RETURN and state==IN_MENU) { state=IN_GAME; ShipManager::get()->flush_ships(); BulletManager::get()->flush_bullets(); ShipManager::get()->schedule_wave("mainwave"); ship=new BigShip; SdlManager::get()->register_listener(ship); }
+        if (key==SDLK_RETURN and state==IN_MENU) {
+            state=IN_GAME;
+            ShipManager::get()->flush_ships();
+            BulletManager::get()->flush_bullets();
+            ShipManager::get()->schedule_wave("mainwave");
+            ship=new BigShip;
+            SdlManager::get()->register_listener(ship);
+            ShipManager::get()->score=0;
+        }
         if (key==SDLK_ESCAPE and state==IN_GAME) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; ship=NULL; }
         return true;
     }
