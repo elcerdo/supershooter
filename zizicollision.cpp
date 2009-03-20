@@ -8,7 +8,7 @@ using std::endl;
 
 class StaticShip : public Ship {
 public:
-    StaticShip(Sprite *body,float health) : Ship(body,health) {}
+    StaticShip(Sprite *body,float health) : Ship(body,health,0) {}
     virtual bool move(float dt) { return true; }
 };
 

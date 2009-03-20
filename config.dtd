@@ -4,7 +4,8 @@
 <!ELEMENT ship (sprite,program+)>
 <!ATTLIST ship 
 	health CDATA #REQUIRED
-	id CDATA #REQUIRED>
+	id CDATA #REQUIRED
+	score CDATA #REQUIRED>
 
 <!ELEMENT sprite (sprite*)>
 <!ATTLIST sprite

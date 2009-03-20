@@ -23,8 +23,8 @@ std::ostream &operator<<(std::ostream &os, const TiXmlElement *elem) {
 }
 
 //***********************************************************
-Ship::Ship(float health) : body(NULL), health(health) {}
-Ship::Ship(Sprite *body,float health) : body(body), health(health) {}
+Ship::Ship(float health,long int score) : body(NULL), health(health), score(score) {}
+Ship::Ship(Sprite *body,float health,long int score) : body(body), health(health), score(score) {}
 Ship::~Ship() { delete body; }
 void Ship::draw(float dt) const { body->draw(dt); }
 float Ship::get_x() const { return body->x; }
@@ -69,7 +69,7 @@ bool Ship::collide_with(const Point *point) const {
     return true;
 }
 
-XmlShip::XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug) : Ship(aa,health), sprites(sprites), current(main), t(0), speed(0), wait(0), debug(debug) {}
+XmlShip::XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,long int score) : Ship(aa,health,score), sprites(sprites), current(main), t(0), speed(0), wait(0) {}
 
 bool XmlShip::move(float dt) {
     if (body->x>SdlManager::get()->width+512 or body->x<-512 or body->y>SdlManager::get()->height+512 or body->y<-512) return false;
@@ -77,13 +77,10 @@ bool XmlShip::move(float dt) {
     body->x+=dt*speed*cos(body->angle);
     body->y+=dt*speed*sin(body->angle);
 
-    //if (debug) if (not stack.empty() or current) cout<<t<<": "<<current<<endl;
-
     exec();
 
     if (wait>0) wait-=dt;
     if (wait<0) wait=0;
-    //t+=dt;
 
     return true;
 }
@@ -91,27 +88,18 @@ bool XmlShip::move(float dt) {
 void XmlShip::exec() {
     if (wait>0) return;
 
-    if (debug) for (size_t k=0; k<stack.size(); k++) cout<<"-";
-
     if (current) {
         if (current->ValueStr()=="program") {
-            if (debug) cout<<"entering "<<current;
             int repeat=1;
             current->QueryValueAttribute("repeat",&repeat);
-            if (debug) cout<<" repeat="<<repeat;
             stack.push(std::make_pair(current,repeat));
-            if (debug) cout<<endl;
             current=current->FirstChildElement();
         } else if (current->ValueStr()=="wait") {
-            if (debug) cout<<"entering "<<current;
             float time=1.;
             current->QueryValueAttribute("time",&time);
-            if (debug) cout<<" time="<<time;
             wait=time;
-            if (debug) cout<<endl;
             current=current->NextSiblingElement();
         } else if (current->ValueStr()=="position") {
-            if (debug) cout<<"entering "<<current;
 
             std::string id;
             if (current->QueryValueAttribute("id",&id)==TIXML_SUCCESS) {
@@ -121,18 +109,14 @@ void XmlShip::exec() {
                 current->QueryValueAttribute("x",&select->x);
                 current->QueryValueAttribute("y",&select->y);
                 if (current->QueryValueAttribute("angle",&select->angle)==TIXML_SUCCESS) select->angle*=M_PI/180.;
-                if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
             } else {
                 current->QueryValueAttribute("x",&body->x);
                 current->QueryValueAttribute("y",&body->y);
                 if (current->QueryValueAttribute("angle",&body->angle)==TIXML_SUCCESS) body->angle*=M_PI/180.;
-                if (debug) body->dump();
             }
 
             current=current->NextSiblingElement();
         } else if (current->ValueStr()=="positionrel") {
-            if (debug) cout<<"entering "<<current;
-
             float _x=0,_y=0,_angle=0;
             current->QueryValueAttribute("x",&_x);
             current->QueryValueAttribute("y",&_y);
@@ -146,18 +130,14 @@ void XmlShip::exec() {
                 select->x+=_x;
                 select->y+=_y;
                 select->angle+=_angle;
-                if (debug) cout<<" "<<id<<" "<<select->x<<" "<<select->y<<" "<<select->angle*180./M_PI<<endl;
             } else {
                 body->x+=_x;
                 body->y+=_y;
                 body->angle+=_angle;
-                if (debug) body->dump();
             }
 
             current=current->NextSiblingElement();
         } else if (current->ValueStr()=="shoot") {
-            if (debug) cout<<"entering "<<current;
-
             float _rangle=0,_speed=300.;
             std::string _name="bullet01";
             current->QueryValueAttribute("speed",&_speed);
@@ -180,12 +160,9 @@ void XmlShip::exec() {
                 current->QueryValueAttribute("sprlength",&cast->length);
             }
 
-            if (debug) cout<<endl;
             current=current->NextSiblingElement();
         } else if (current->ValueStr()=="speed") {
-            if (debug) cout<<"entering "<<current;
             current->QueryValueAttribute("value",&speed);
-            if (debug) cout<<" "<<speed<<endl;
             current=current->NextSiblingElement();
         } else {
             std::cerr<<"unknow ship order "<<current<<endl;
@@ -197,11 +174,9 @@ void XmlShip::exec() {
 
         top.second--;
         if (top.second) {
-            if (debug) cout<<"repeating "<<top.first<<" "<<top.second<<endl;
             current=top.first->FirstChildElement();
             stack.push(top);
         } else {
-            if (debug) cout<<"returning from "<<top.first<<endl;
             if (not stack.empty()) current=top.first->NextSiblingElement();
             else current=NULL;
         }
@@ -221,7 +196,7 @@ void ShipManager::init(size_t nspace,const std::string &configfile) {
     mShipManager=new ShipManager(nspace,configfile);
 }
 
-ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(nspace), ncreated(0), ndestroyed(0), current(NULL), wait(0) {
+ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(nspace), ncreated(0), ndestroyed(0), current(NULL), wait(0), score(0) {
     xml_assert(config.LoadFile(configfile));
 
     TiXmlElement *root=config.FirstChildElement("config");
@@ -285,9 +260,10 @@ bool ShipManager::frame_entered(float t,float dt) {
                 if (AnimatedSprite *cast=dynamic_cast<AnimatedSprite*>(sprite)) { cast->speed=15.; cast->repeat=false; };
                 explosions.insert(std::make_pair(t,sprite));
 
-                delete *i;
+                score+=(*i)->score;
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);
+                delete *i;
                 ndestroyed++;
                 continue;
             }
@@ -412,7 +388,9 @@ XmlShip *ShipManager::launch_enemy_ship(const std::string &id,const std::string 
     if (foo==shipnodes.end()) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,id);
 
     float health;
+    long int score;
     xml_assert(foo->second->QueryValueAttribute("health",&health)==TIXML_SUCCESS);
+    xml_assert(foo->second->QueryValueAttribute("score",&score)==TIXML_SUCCESS);
 
     XmlShip::Sprites sprites;
     Sprite *body=parse_sprite(foo->second->FirstChildElement("sprite"),sprites);
@@ -425,7 +403,7 @@ XmlShip *ShipManager::launch_enemy_ship(const std::string &id,const std::string 
     }
     if (not program) throw Except(Except::SS_XML_ID_UNKNOWN_ERR,prgid);
 
-    XmlShip *ship=new XmlShip(body,sprites,program,health);
+    XmlShip *ship=new XmlShip(body,sprites,program,health,score);
     ship->body->x=x;
     ship->body->y=y;
     ship->body->angle=angle;

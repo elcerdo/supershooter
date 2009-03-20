@@ -12,8 +12,8 @@
 
 //***********************************************************
 struct Ship : public Area {
-    Ship(float health);
-    Ship(Sprite *body,float health);
+    Ship(float health,long int score);
+    Ship(Sprite *body,float health,long int score);
     virtual ~Ship();
     virtual bool move(float dt)=0;
     virtual void draw(float dt) const;
@@ -26,15 +26,15 @@ struct Ship : public Area {
     virtual bool collide_with(const Point *point) const;
     Sprite *body;
     float health;
+    long int score;
 };
 
 class XmlShip : public Ship {
 public:
     typedef std::map<std::string,Sprite*> Sprites;
-    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,bool debug=false);
+    XmlShip(Sprite *aa,const Sprites &sprites,TiXmlElement *main,float health,long int score);
 
     virtual bool move(float dt);
-    bool debug;
 protected:
     void exec();
     float speed,wait;
@@ -58,6 +58,7 @@ public:
     void flush_ships();
     XmlShip *launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle);
     void dump(std::ostream &os=std::cout) const;
+    long int score;
 protected:
     ShipManager(size_t nspace,const std::string &configfile);
     ~ShipManager();
