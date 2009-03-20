@@ -186,7 +186,7 @@ protected:
                 ship_health->update(ss.str());
                 } {
                 std::stringstream ss;
-                ss<<std::setw(7)<<std::setfill('0')<<ShipManager::get()->score;
+                ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
                 ship_score->update(ss.str());
                 }
 
