@@ -186,7 +186,8 @@ protected:
             if (current->sprite->y>SdlManager::get()->height) {
                 delete current;
                 stars.erase(i);
-                stars.insert(new Star);
+                current=new Star;
+                stars.insert(current);
             }
             current->sprite->draw(dt);
         }
