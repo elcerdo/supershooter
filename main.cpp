@@ -176,7 +176,7 @@ protected:
             blogo->draw(dt);
             flogo->draw(dt);
         } else if (state==IN_GAME) {
-            if (ship->health<0) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; }
+            if (ship->health<0) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; ship=NULL; }
         }
 
 
