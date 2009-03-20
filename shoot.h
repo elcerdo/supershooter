@@ -54,6 +54,8 @@ public:
 
     void add_ship(Ship *ship,size_t kspace);
     void schedule_wave(const std::string &id);
+    void flush_waves();
+    void flush_ships();
     XmlShip *launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle);
     void dump(std::ostream &os=std::cout) const;
 protected:
@@ -107,6 +109,7 @@ public:
 
     Bullet *shoot(float x,float y,float angle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
     Bullet *shoot_from_sprite(const Sprite *sprite,float rangle, float speed, size_t kspace, const std::string &name="bullet00",float damage=2.);
+    void flush_bullets();
 protected:
     BulletManager(size_t nspace);
     ~BulletManager();

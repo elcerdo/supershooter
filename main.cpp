@@ -142,7 +142,7 @@ protected:
 
 class MainMenu : public Listener {
 public:
-    MainMenu() : state(IN_MENU)  {
+    MainMenu() : state(IN_MENU), ship(NULL)  {
         flogo=SpriteManager::get()->get_sprite("fronttitle");
         blogo=SpriteManager::get()->get_sprite("backtitle");
         flogo->x=SdlManager::get()->width*.5;
@@ -154,10 +154,9 @@ public:
 
         for (size_t k=0; k<255; k++) stars.insert(new Star(true));
 
-        ship=new BigShip;
     }
     ~MainMenu() {
-        delete ship;
+        if (ship) delete ship;
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
 
@@ -167,8 +166,8 @@ public:
 protected:
     virtual bool key_down(SDLKey key) {
         if (key==SDLK_ESCAPE and state==IN_MENU) return false;
-        if (key==SDLK_RETURN and state==IN_MENU) { state=IN_GAME; SdlManager::get()->register_listener(ship); ShipManager::get()->schedule_wave("mainwave"); }
-        if (key==SDLK_ESCAPE and state==IN_GAME) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); }
+        if (key==SDLK_RETURN and state==IN_MENU) { state=IN_GAME; ShipManager::get()->flush_ships(); BulletManager::get()->flush_bullets(); ShipManager::get()->schedule_wave("mainwave"); ship=new BigShip; SdlManager::get()->register_listener(ship); }
+        if (key==SDLK_ESCAPE and state==IN_GAME) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; ship=NULL; }
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -176,7 +175,10 @@ protected:
             blogo->alpha=(.4+.2*cos(2*M_PI*t/4.))/2.;
             blogo->draw(dt);
             flogo->draw(dt);
+        } else if (state==IN_GAME) {
+            if (ship->health<0) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; }
         }
+
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) {
             Star *current=*i;

@@ -267,8 +267,11 @@ void ShipManager::unregister_self() {
     explosions.clear();
 }
 
+void ShipManager::flush_waves() { MessageManager::get()->add_message("flushing waves"); current=NULL; while (not stack.empty()) stack.pop_front(); }
+void ShipManager::flush_ships() { unregister_self(); }
+
 bool ShipManager::frame_entered(float t,float dt) {
-    for (Explosions::iterator i=explosions.begin(); i!=explosions.end() and t>i->first+1.; i++) { delete i->second; explosions.erase(i); }
+    for (Explosions::iterator i=explosions.begin(); i!=explosions.end() and t>i->first+1.; i++) { delete i->second; explosions.erase(i); } //explosions last one second
     for (Explosions::const_iterator i=explosions.begin(); i!=explosions.end(); i++) i->second->draw(dt);
 
     size_t kspace=0;
@@ -500,6 +503,7 @@ BulletManager::~BulletManager() {
     else cout<<"leak detected"<<endl;
 }
 
+void BulletManager::flush_bullets() { unregister_self(); }
 void BulletManager::unregister_self() {
     size_t kspace=0;
     for (Spaces::iterator bullets=spaces.begin(); bullets!=spaces.end(); bullets++) {
