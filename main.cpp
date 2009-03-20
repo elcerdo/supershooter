@@ -140,11 +140,93 @@ protected:
     virtual bool frame_entered(float t,float dt) { return true; }
 };
 
+class MainMenu : public Listener {
+public:
+    MainMenu() : state(IN_MENU)  {
+        flogo=SpriteManager::get()->get_sprite("fronttitle");
+        blogo=SpriteManager::get()->get_sprite("backtitle");
+        flogo->x=SdlManager::get()->width*.5;
+        flogo->y=100;
+        flogo->z=9;
+        blogo->x=SdlManager::get()->width*.5;
+        blogo->y=100;
+        blogo->z=8.5;
+
+        for (size_t k=0; k<255; k++) stars.insert(new Star(true));
+
+        ship=new BigShip;
+    }
+    ~MainMenu() {
+        delete ship;
+
+        for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
+
+        delete flogo;
+        delete blogo;
+    }
+protected:
+    virtual bool key_down(SDLKey key) {
+        if (key==SDLK_ESCAPE and state==IN_MENU) return false;
+        if (key==SDLK_RETURN and state==IN_MENU) { state=IN_GAME; SdlManager::get()->register_listener(ship); ShipManager::get()->schedule_wave("mainwave"); }
+        if (key==SDLK_ESCAPE and state==IN_GAME) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); }
+        return true;
+    }
+    virtual bool frame_entered(float t,float dt) {
+        if (state==IN_MENU) {
+            blogo->alpha=(.4+.2*cos(2*M_PI*t/4.))/2.;
+            blogo->draw(dt);
+            flogo->draw(dt);
+        }
+
+        for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) {
+            Star *current=*i;
+            current->sprite->y+=current->v*dt;
+            if (current->sprite->y>SdlManager::get()->height) {
+                delete current;
+                stars.erase(i);
+                stars.insert(new Star);
+            }
+            current->sprite->draw(dt);
+        }
+        return true;
+    }
+    Sprite *flogo,*blogo;
+
+    enum State {
+        IN_MENU,
+        IN_GAME,
+    };
+    State state;
+    
+    struct Star {
+        Star(bool initial=false) : v(5.+100.*rand()/(RAND_MAX+1.)) {
+            sprite=dynamic_cast<StateSprite*>(SpriteManager::get()->get_sprite("star"));
+            sprite->state=rand()%sprite->nstate;
+            sprite->y=-SdlManager::get()->height*rand()/(RAND_MAX+1.);
+            if (initial) sprite->y*=-1;
+            sprite->x=SdlManager::get()->width*rand()/(RAND_MAX+1.);
+            sprite->z=-9.5;
+            sprite->alpha=.5;
+            sprite->factorx=.25+.75*rand()/(RAND_MAX+1.);
+            sprite->factory=sprite->factorx;
+        }
+        ~Star() { delete sprite; }
+        StateSprite *sprite;
+        float v;
+    };
+
+    typedef std::set<Star*> Stars;
+    Stars stars;
+    BigShip *ship;
+};
+
+
+
 
 int main() {
     try {
         SdlManager::init();
-        SdlManager::get()->set_background_color(.5,.6,.7);
+        SdlManager::get()->set_background_color(0,0,0);
 
         SpriteManager::init();
         SpriteManager::get()->load_directory("data");
@@ -168,15 +250,19 @@ int main() {
             //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","left",y,-100,M_PI/2.);
             //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","right",y,-50,M_PI/2.);
 
-            Killer killer;
-            BigShip bigship;
+            //Killer killer;
+            //BigShip bigship;
+            //Pusher pusher;
+            //SdlManager::get()->register_listener(&killer);
+            //SdlManager::get()->register_listener(&pusher);
+            //SdlManager::get()->register_listener(&bigship);
+
             Fps fps;
-            Pusher pusher;
-            SdlManager::get()->register_listener(&killer);
+            MainMenu mainmenu;
+            SdlManager::get()->register_listener(&mainmenu);
             SdlManager::get()->register_listener(&fps);
-            SdlManager::get()->register_listener(&pusher);
-            SdlManager::get()->register_listener(&bigship);
             SdlManager::get()->main_loop();
+
         }
         ShipManager::free();
         BulletManager::free();
