@@ -11,11 +11,7 @@ using std::endl;
 
 class BigShip : public Ship, public Listener {
 public:
-    BigShip() : Ship(100), shooting(false), reload(0) {
-        life=SpriteManager::get()->get_text("life","font00");
-        life->x=16;
-        life->y=SdlManager::get()->height-16;
-
+    BigShip() : Ship(100,10000), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship00");
         body->z=-1;
         //body->factorx=2.;
@@ -37,12 +33,8 @@ public:
         body->y=300;
         body->angle=-M_PI/2.;
     }
-    ~BigShip() { delete life; }
 
     virtual bool move(float dt) {
-        std::stringstream ss;
-        ss<<std::fixed<<std::setprecision(0)<<health;
-        life->update(ss.str());
 
         //body->x+=dt*speed*cos(angle);
         //body->y+=dt*speed*sin(angle);
@@ -51,6 +43,7 @@ public:
 
         if (shooting and reload<=0) {
             reload+=0.05;
+            ShipManager::get()->score+=7;
             dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",10)->sprite)->speed=20.;
             dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
             dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
@@ -63,10 +56,6 @@ public:
         else { turrel_left->state=0; turrel_right->state=0; }
 
         return true;
-    }
-    virtual void draw(float dt) const {
-        body->draw(dt);
-        life->draw(dt);
     }
 
 
@@ -121,7 +110,6 @@ protected:
 
     AnimatedSprite *turrel_left;
     AnimatedSprite *turrel_right;
-    Text *life;
     bool shooting;
     //float angle,speed;
     float reload;
@@ -152,6 +140,13 @@ public:
         blogo->y=100;
         blogo->z=8.5;
 
+        ship_health=SpriteManager::get()->get_text("life","font00");
+        ship_health->x=16;
+        ship_health->y=SdlManager::get()->height-48;
+        ship_score=SpriteManager::get()->get_text("score","font00");
+        ship_score->x=16;
+        ship_score->y=SdlManager::get()->height-16;
+
         for (size_t k=0; k<255; k++) stars.insert(new Star(true));
 
     }
@@ -160,6 +155,8 @@ public:
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
 
+        delete ship_health;
+        delete ship_score;
         delete flogo;
         delete blogo;
     }
@@ -176,7 +173,26 @@ protected:
             blogo->draw(dt);
             flogo->draw(dt);
         } else if (state==IN_GAME) {
-            if (ship->health<0) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; }
+            if (ship->health<0) {
+                state=IN_MENU;
+                SdlManager::get()->unregister_listener(ship);
+                ShipManager::get()->flush_waves();
+                delete ship;
+                ship=NULL;
+            } else {
+                {
+                std::stringstream ss;
+                ss<<std::fixed<<std::setprecision(0)<<ship->health;
+                ship_health->update(ss.str());
+                } {
+                std::stringstream ss;
+                ss<<std::setw(7)<<std::setfill('0')<<ShipManager::get()->score;
+                ship_score->update(ss.str());
+                }
+
+                ship_health->draw(dt);
+                ship_score->draw(dt);
+            }
         }
 
 
@@ -221,6 +237,8 @@ protected:
     typedef std::set<Star*> Stars;
     Stars stars;
     BigShip *ship;
+    Text *ship_health;
+    Text *ship_score;
 };
 
 
