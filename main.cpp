@@ -134,7 +134,7 @@ protected:
 
 class MainMenu : public Listener {
 public:
-    MainMenu() : state(IN_MENU), ship(NULL), title_start(NULL), title_name(NULL), wavename("ohyeah"), final_score(NULL), final_text(NULL), final_score_text(NULL) {
+    MainMenu() : state(IN_MENU), ship(NULL), title_start(NULL), title_name(NULL), wavename("ohyeah"), final_score(NULL), final_text(NULL), final_score_text(NULL), current_hiscore_text(NULL) {
         flogo=SpriteManager::get()->get_sprite("fronttitle");
         blogo=SpriteManager::get()->get_sprite("backtitle");
         flogo->x=SdlManager::get()->width*.5;
@@ -180,16 +180,7 @@ protected:
             ShipManager::get()->score=0;
             title_start=new Drifting("GAME START","font01",2.5,SdlManager::get()->height/3.,true);
             title_name=new Drifting(wavename,"font00",1.,title_start->text->y+50,false);
-        } else if (button==1 and state==GAME_OVER) {
-            SdlManager::get()->unregister_listener(ship);
-            delete ship;
-            delete final_score_text;
-            delete final_score;
-            delete final_text;
-            final_text=final_score_text=final_score=NULL;
-            ship=NULL;
-            state=IN_MENU;
-        }
+        } else if (button==1 and state==GAME_OVER) game_over_to_menu();
         return true;
     }
     virtual bool key_down(SDLKey key) {
@@ -201,38 +192,43 @@ protected:
             ShipManager::get()->flush_waves();
             delete ship;
             ship=NULL;
-        } else if (key==SDLK_ESCAPE and state==GAME_OVER) { 
-            SdlManager::get()->unregister_listener(ship);
-            delete ship;
-            ship=NULL;
-            delete final_score_text;
-            delete final_score;
-            delete final_text;
-            final_text=final_score_text=final_score=NULL;
-            while (not hiscore_texts.empty()) { delete hiscore_texts.front(); hiscore_texts.pop_front(); }
-            current_hiscore_text=NULL;
-            state=IN_MENU;
-        }
+        } else if (key==SDLK_ESCAPE and state==GAME_OVER) game_over_to_menu();
         return true;
     }
+    void game_over_to_menu() {
+        state=IN_MENU;
+        SdlManager::get()->unregister_listener(ship);
+        delete ship;
+        ship=NULL;
+        delete final_score_text;
+        delete final_score;
+        delete final_text;
+        final_text=final_score_text=final_score=NULL;
+        while (not hiscore_texts.empty()) { delete hiscore_texts.front(); hiscore_texts.pop_front(); }
+        current_hiscore_text=NULL;
+    }
+    void display_health_and_score(float dt) {
+        {
+        std::stringstream ss;
+        ss<<std::fixed<<std::setprecision(0)<<ship->health;
+        ship_health->update(ss.str());
+        } {
+        std::stringstream ss;
+        ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+        ship_score->update(ss.str());
+        }
+
+        ship_health->draw(dt);
+        ship_score->draw(dt);
+    }
+
     virtual bool frame_entered(float t,float dt) {
         if (state==IN_MENU) {
             blogo->alpha=(.4+.2*cos(2*M_PI*t/4.))/2.;
             blogo->draw(dt);
             flogo->draw(dt);
         } else if (state==GAME_START) {
-            {
-            std::stringstream ss;
-            ss<<std::fixed<<std::setprecision(0)<<ship->health;
-            ship_health->update(ss.str());
-            } {
-            std::stringstream ss;
-            ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
-            ship_score->update(ss.str());
-            }
-
-            ship_health->draw(dt);
-            ship_score->draw(dt);
+            display_health_and_score(dt);
 
             if (not (title_start->draw(dt) and title_name->draw(dt))) {
                 delete title_name;
@@ -242,72 +238,16 @@ protected:
                 state=IN_GAME;
             }
         } else if (state==IN_GAME) {
-            if (ship->health<0) {
-                ShipManager::get()->flush_waves();
-                state=GAME_OVER;
-                
-                final_text=SpriteManager::get()->get_text("GAME OVER","font01",Text::CENTER);
-                final_text->factorx=final_text->factory=2.5;
-                final_text->x=SdlManager::get()->width/2.;
-                final_text->y=SdlManager::get()->height/3.;
+            display_health_and_score(dt);
 
-                final_score_text=SpriteManager::get()->get_text("final score","font00",Text::CENTER);
-                final_score_text->x=final_text->x;
-                final_score_text->y=final_text->y+100;
-
-                std::stringstream ss;
-                ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
-                ship_score->update(ss.str());
-                final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
-                final_score->x=final_score_text->x;
-                final_score->factorx=final_score->factory=1.5;
-                final_score->y=final_score_text->y+40;
-
-                update_hiscores(ShipManager::get()->score,final_score->y+70);
-            } else {
-                {
-                std::stringstream ss;
-                ss<<std::fixed<<std::setprecision(0)<<ship->health;
-                ship_health->update(ss.str());
-                } {
-                std::stringstream ss;
-                ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
-                ship_score->update(ss.str());
-                }
-
-                ship_health->draw(dt);
-                ship_score->draw(dt);
-                if (ShipManager::get()->wave_finished()) {
-                    ShipManager::get()->flush_waves();
-                    state=GAME_OVER;
-
-                    final_text=SpriteManager::get()->get_text("WAVE COMPLETED","font01",Text::CENTER);
-                    final_text->factorx=final_text->factory=2.5;
-                    final_text->x=SdlManager::get()->width/2.;
-                    final_text->y=SdlManager::get()->height/3.;
-
-                    final_score_text=SpriteManager::get()->get_text("final score","font00",Text::CENTER);
-                    final_score_text->x=final_text->x;
-                    final_score_text->y=final_text->y+100;
-
-                    std::stringstream ss;
-                    ShipManager::get()->score+=1000*ship->health;
-                    ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
-                    ship_score->update(ss.str());
-                    final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
-                    final_score->x=final_score_text->x;
-                    final_score->factorx=final_score->factory=1.5;
-                    final_score->y=final_score_text->y+40;
-
-                    update_hiscores(ShipManager::get()->score,final_score->y+70);
-                }
-            }
+            if (ship->health<0) update_hiscores("GAME OVER",ShipManager::get()->score);
+            else if (ShipManager::get()->wave_finished()) update_hiscores("WAVE COMPLETED",ShipManager::get()->score);
         } else if (state==GAME_OVER) {
             final_score_text->draw(dt);
             final_text->draw(dt);
             final_score->draw(dt);
             blink-=dt;
-            if (blink<0 and current_hiscore_text) { blink+=.5; current_hiscore_text->alpha=1.-current_hiscore_text->alpha; current_hiscore_text->update_alpha(); }
+            if (blink<0 and current_hiscore_text) { blink+=.5; } //current_hiscore_text->alpha=1.-current_hiscore_text->alpha; current_hiscore_text->update_alpha(); }
             for (HiScoreTexts::const_iterator ii=hiscore_texts.begin(); ii!=hiscore_texts.end(); ii++) (*ii)->draw(dt);
         }
                 
@@ -332,7 +272,27 @@ protected:
     float blink;
     typedef std::multimap<int,std::string> HiScore;
     typedef std::map<std::string,HiScore> HiScores;
-    void update_hiscores(long int myscore,float base_y) {
+    void update_hiscores(const std::string &title,long int myscore) {
+        ShipManager::get()->flush_waves();
+        state=GAME_OVER;
+        
+        final_text=SpriteManager::get()->get_text(title,"font01",Text::CENTER);
+        final_text->factorx=final_text->factory=2.5;
+        final_text->x=SdlManager::get()->width/2.;
+        final_text->y=SdlManager::get()->height/3.;
+
+        final_score_text=SpriteManager::get()->get_text("final score","font00",Text::CENTER);
+        final_score_text->x=final_text->x;
+        final_score_text->y=final_text->y+100;
+
+        std::stringstream ss;
+        ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+        ship_score->update(ss.str());
+        final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
+        final_score->x=final_score_text->x;
+        final_score->factorx=final_score->factory=1.5;
+        final_score->y=final_score_text->y+40;
+
         const passwd *pass=getpwuid(getuid());
         std::string hiscorefile(pass->pw_dir);
         hiscorefile+="/.supershooter";
@@ -361,6 +321,8 @@ protected:
         if (ii==hi.end()) return;
 
         size_t k=5;
+        float base_y=final_score->y+70;
+        current_hiscore_text=NULL;
         HiScore::const_reverse_iterator jj=ii->second.rbegin();
         while (jj!=ii->second.rend() and k>0) {
             std::stringstream ss;

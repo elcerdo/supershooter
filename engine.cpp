@@ -30,6 +30,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
     if (not screen) { cerr<<"cannot create sdl screen..."<<endl; throw Except(Except::SS_INIT_ERR); }
 
     SDL_SetEventFilter(&event_filter);
+    SDL_ShowCursor(false);
 
 	glEnable(GL_TEXTURE_2D);
 	glShadeModel(GL_SMOOTH);
