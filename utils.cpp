@@ -6,7 +6,7 @@
 using std::cout;
 using std::endl;
 
-Fps::Fps() : frame(0), update_t(0),display(true) {
+Fps::Fps() : frame(0), update_t(0),display(false) {
     text=SpriteManager::get()->get_text("","font00",Text::LEFT);
     text->x=10;
     text->y=10;

@@ -10,7 +10,7 @@ void MessageManager::init(size_t nmessage,size_t nfade) {
     mMessageManager=new MessageManager(nmessage,nfade);
 }
 
-MessageManager::MessageManager(size_t nmessage,size_t nfade) : nmessage(nmessage), nplain(nmessage-nfade-1), maxalpha(0.7), display(true) {}
+MessageManager::MessageManager(size_t nmessage,size_t nfade) : nmessage(nmessage), nplain(nmessage-nfade-1), maxalpha(0.7), display(false) {}
 MessageManager::~MessageManager() { unregister_self(); }
 
 void MessageManager::add_message(const std::string &message) {

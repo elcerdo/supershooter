@@ -364,6 +364,8 @@ void ShipManager::exec() {
     if (current or not stack.empty()) exec();
 };
 
+bool ShipManager::wave_finished() const { return (not current and stack.empty() and spaces[0].empty()); }
+
 void ShipManager::add_ship(Ship *ship,size_t kspace) {
     spaces[kspace].insert(ship);
     CollisionManager::get()->spaces[kspace].second.insert(ship);

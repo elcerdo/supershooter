@@ -56,6 +56,7 @@ public:
     void schedule_wave(const std::string &id);
     void flush_waves();
     void flush_ships();
+    bool wave_finished() const;
     XmlShip *launch_enemy_ship(const std::string &id,const std::string &prgid,float x,float y,float angle);
     void dump(std::ostream &os=std::cout) const;
     long int score;

@@ -281,14 +281,14 @@ void Text::update_align() {
     case RIGHT:
         cx=(w-2.)*(1.-children.size()); break;
     case CENTER:
-        cx=-(w-2.)*children.size()/2.; break;
+        cx=(w-2.)*(1.-children.size())/2.; break;
     case LEFT:
     default:
         break;
     }
 }
 
-double Text::width() const { return factorx*(w-2.)*children.size(); }
+double Text::width() const { return factorx*(w-2.)*(children.size()-1.); }
 
 void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
 
@@ -349,6 +349,7 @@ SpriteManager::SpriteManager(size_t maxid) : maxid(maxid), currentid(0) {
     for (char i='a'; i<='z'; i++) mapping[i]=k++;
     k=0;
     for (char i='A'; i<='Z'; i++) mapping[i]=k++;
+    mapping['_']=k;
     mapping[' ']=k++;
     for (char i='0'; i<='9'; i++) mapping[i]=k++;
     mapping['.']=k++;

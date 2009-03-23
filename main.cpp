@@ -118,7 +118,7 @@ protected:
 
 class MainMenu : public Listener {
 public:
-    MainMenu() : state(IN_MENU), ship(NULL), title_start(NULL), title_name(NULL), wavename("ohyeah") {
+    MainMenu() : state(IN_MENU), ship(NULL), title_start(NULL), title_name(NULL), wavename("ohyeah"), final_score(NULL), final_text(NULL), final_score_text(NULL) {
         flogo=SpriteManager::get()->get_sprite("fronttitle");
         blogo=SpriteManager::get()->get_sprite("backtitle");
         flogo->x=SdlManager::get()->width*.5;
@@ -141,6 +141,9 @@ public:
         if (ship) delete ship;
         if (title_name) delete title_name;
         if (title_start) delete title_start;
+        if (final_text) delete final_text;
+        if (final_score) delete final_score;
+        if (final_score_text) delete final_score_text;
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
 
@@ -150,9 +153,8 @@ public:
         delete blogo;
     }
 protected:
-    virtual bool key_down(SDLKey key) {
-        if (key==SDLK_ESCAPE and state==IN_MENU) return false;
-        else if (key==SDLK_RETURN and state==IN_MENU) {
+    virtual bool mouse_down(int button, float x,float y) {
+        if (button==1 and state==IN_MENU) {
             state=GAME_START;
             ShipManager::get()->flush_ships();
             BulletManager::get()->flush_bullets();
@@ -161,12 +163,36 @@ protected:
             ShipManager::get()->score=0;
             title_start=new Drifting("GAME START","font01",2.5,SdlManager::get()->height/3.,true);
             title_name=new Drifting(wavename,"font00",1.,title_start->text->y+50,false);
+        } else if (button==1 and state==GAME_OVER) {
+            SdlManager::get()->unregister_listener(ship);
+            delete ship;
+            delete final_score_text;
+            delete final_score;
+            delete final_text;
+            final_text=final_score_text=final_score=NULL;
+            ship=NULL;
+            state=IN_MENU;
+        }
+        return true;
+    }
+    virtual bool key_down(SDLKey key) {
+        if (key==SDLK_ESCAPE and state==IN_MENU) {
+            return false;
         } else if (key==SDLK_ESCAPE and state==IN_GAME) {
             state=IN_MENU;
             SdlManager::get()->unregister_listener(ship);
             ShipManager::get()->flush_waves();
             delete ship;
             ship=NULL;
+        } else if (key==SDLK_ESCAPE and state==GAME_OVER) { 
+            SdlManager::get()->unregister_listener(ship);
+            delete ship;
+            ship=NULL;
+            delete final_score_text;
+            delete final_score;
+            delete final_text;
+            final_text=final_score_text=final_score=NULL;
+            state=IN_MENU;
         }
         return true;
     }
@@ -198,11 +224,25 @@ protected:
             }
         } else if (state==IN_GAME) {
             if (ship->health<0) {
-                state=IN_MENU;
-                SdlManager::get()->unregister_listener(ship);
                 ShipManager::get()->flush_waves();
-                delete ship;
-                ship=NULL;
+                state=GAME_OVER;
+                
+                final_text=SpriteManager::get()->get_text("GAME OVER","font01",Text::CENTER);
+                final_text->factorx=final_text->factory=2.5;
+                final_text->x=SdlManager::get()->width/2.;
+                final_text->y=SdlManager::get()->height/3.;
+
+                final_score_text=SpriteManager::get()->get_text("final score","font00",Text::CENTER);
+                final_score_text->x=final_text->x;
+                final_score_text->y=final_text->y+100;
+
+                std::stringstream ss;
+                ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+                ship_score->update(ss.str());
+                final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
+                final_score->x=final_score_text->x;
+                final_score->factorx=final_score->factory=1.5;
+                final_score->y=final_score_text->y+40;
             } else {
                 {
                 std::stringstream ss;
@@ -216,10 +256,35 @@ protected:
 
                 ship_health->draw(dt);
                 ship_score->draw(dt);
+                if (ShipManager::get()->wave_finished()) {
+                    ShipManager::get()->flush_waves();
+                    state=GAME_OVER;
+
+                    final_text=SpriteManager::get()->get_text("WAVE COMPLETED","font01",Text::CENTER);
+                    final_text->factorx=final_text->factory=2.5;
+                    final_text->x=SdlManager::get()->width/2.;
+                    final_text->y=SdlManager::get()->height/3.;
+
+                    final_score_text=SpriteManager::get()->get_text("final score","font00",Text::CENTER);
+                    final_score_text->x=final_text->x;
+                    final_score_text->y=final_text->y+100;
+
+                    std::stringstream ss;
+                    ShipManager::get()->score+=1000*ship->health;
+                    ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+                    ship_score->update(ss.str());
+                    final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
+                    final_score->x=final_score_text->x;
+                    final_score->factorx=final_score->factory=1.5;
+                    final_score->y=final_score_text->y+40;
+                }
             }
+        } else if (state==GAME_OVER) {
+            final_score_text->draw(dt);
+            final_text->draw(dt);
+            final_score->draw(dt);
         }
-
-
+                
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) {
             Star *current=*i;
             current->sprite->y+=current->v*dt;
@@ -239,7 +304,6 @@ protected:
         IN_MENU,
         GAME_START,
         IN_GAME,
-        GAME_FINISHED,
         GAME_OVER
     };
     State state;
@@ -266,6 +330,9 @@ protected:
     BigShip *ship;
     Text *ship_health;
     Text *ship_score;
+    Text *final_score_text;
+    Text *final_score;
+    Text *final_text;
 
     struct Drifting {
         Drifting(const std::string &str,const std::string &font,float scale,float y,bool ltr) : text(SpriteManager::get()->get_text(str,font,Text::CENTER)), ltr(ltr), border(500), slow(SdlManager::get()->width/2.-100.), fast(SdlManager::get()->width/2.+100.) {
