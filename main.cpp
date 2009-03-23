@@ -116,21 +116,9 @@ protected:
 };
     
 
-class Pusher : public Listener {
-protected:
-    virtual bool key_down(SDLKey key) {
-        switch (key) {
-        case SDLK_SPACE:
-            ShipManager::get()->schedule_wave("mainwave"); break;
-        }
-        return true;
-    }
-    virtual bool frame_entered(float t,float dt) { return true; }
-};
-
 class MainMenu : public Listener {
 public:
-    MainMenu() : state(IN_MENU), ship(NULL)  {
+    MainMenu() : state(IN_MENU), ship(NULL), title_start(NULL), title_name(NULL), wavename("ohyeah") {
         flogo=SpriteManager::get()->get_sprite("fronttitle");
         blogo=SpriteManager::get()->get_sprite("backtitle");
         flogo->x=SdlManager::get()->width*.5;
@@ -140,18 +128,19 @@ public:
         blogo->y=100;
         blogo->z=8.5;
 
-        ship_health=SpriteManager::get()->get_text("life","font00");
+        ship_health=SpriteManager::get()->get_text("life","font00",Text::LEFT);
         ship_health->x=16;
         ship_health->y=SdlManager::get()->height-48;
-        ship_score=SpriteManager::get()->get_text("score","font00");
+        ship_score=SpriteManager::get()->get_text("score","font00",Text::LEFT);
         ship_score->x=16;
         ship_score->y=SdlManager::get()->height-16;
 
         for (size_t k=0; k<255; k++) stars.insert(new Star(true));
-
     }
     ~MainMenu() {
         if (ship) delete ship;
+        if (title_name) delete title_name;
+        if (title_start) delete title_start;
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
 
@@ -163,16 +152,22 @@ public:
 protected:
     virtual bool key_down(SDLKey key) {
         if (key==SDLK_ESCAPE and state==IN_MENU) return false;
-        if (key==SDLK_RETURN and state==IN_MENU) {
-            state=IN_GAME;
+        else if (key==SDLK_RETURN and state==IN_MENU) {
+            state=GAME_START;
             ShipManager::get()->flush_ships();
             BulletManager::get()->flush_bullets();
-            ShipManager::get()->schedule_wave("mainwave");
             ship=new BigShip;
             SdlManager::get()->register_listener(ship);
             ShipManager::get()->score=0;
+            title_start=new Drifting("GAME START","font01",2.5,SdlManager::get()->height/3.,true);
+            title_name=new Drifting(wavename,"font00",1.,title_start->text->y+50,false);
+        } else if (key==SDLK_ESCAPE and state==IN_GAME) {
+            state=IN_MENU;
+            SdlManager::get()->unregister_listener(ship);
+            ShipManager::get()->flush_waves();
+            delete ship;
+            ship=NULL;
         }
-        if (key==SDLK_ESCAPE and state==IN_GAME) { state=IN_MENU; SdlManager::get()->unregister_listener(ship); ShipManager::get()->flush_waves(); delete ship; ship=NULL; }
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -180,6 +175,27 @@ protected:
             blogo->alpha=(.4+.2*cos(2*M_PI*t/4.))/2.;
             blogo->draw(dt);
             flogo->draw(dt);
+        } else if (state==GAME_START) {
+            {
+            std::stringstream ss;
+            ss<<std::fixed<<std::setprecision(0)<<ship->health;
+            ship_health->update(ss.str());
+            } {
+            std::stringstream ss;
+            ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+            ship_score->update(ss.str());
+            }
+
+            ship_health->draw(dt);
+            ship_score->draw(dt);
+
+            if (not (title_start->draw(dt) and title_name->draw(dt))) {
+                delete title_name;
+                delete title_start;
+                title_start=title_name=NULL;
+                ShipManager::get()->schedule_wave(wavename);
+                state=IN_GAME;
+            }
         } else if (state==IN_GAME) {
             if (ship->health<0) {
                 state=IN_MENU;
@@ -221,7 +237,10 @@ protected:
 
     enum State {
         IN_MENU,
+        GAME_START,
         IN_GAME,
+        GAME_FINISHED,
+        GAME_OVER
     };
     State state;
     
@@ -247,6 +266,31 @@ protected:
     BigShip *ship;
     Text *ship_health;
     Text *ship_score;
+
+    struct Drifting {
+        Drifting(const std::string &str,const std::string &font,float scale,float y,bool ltr) : text(SpriteManager::get()->get_text(str,font,Text::CENTER)), ltr(ltr), border(500), slow(SdlManager::get()->width/2.-100.), fast(SdlManager::get()->width/2.+100.) {
+            text->factorx=text->factory=scale;
+            text->y=y;
+            if (ltr) { text->x=-border; v=1200; }
+            else { text->x=SdlManager::get()->width+border; v=-1200; }
+        }
+        ~Drifting() { delete text; }
+        bool draw(float dt) {
+            if (text->x>SdlManager::get()->width+border or text->x<-border) return false;
+            text->draw(dt);
+            if (text->x>slow and text->x<fast) text->x+=.2*v*dt;
+            else text->x+=v*dt;
+            return true;
+        }
+
+        Text *text;
+        float v;
+        const float border,slow,fast;
+        bool ltr;
+    };
+    Drifting *title_start;
+    Drifting *title_name;
+    std::string wavename;
 };
 
 

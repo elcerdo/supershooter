@@ -112,13 +112,15 @@ friend class SpriteManager;
 public:
     virtual void draw(float dt) const;
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
+    double width() const;
     void update(const std::string &str);
     void update_alpha();
-    bool right;
+    enum Align { LEFT,CENTER,RIGHT };
+    Align align;
 protected:
     typedef std::map<char,unsigned int> CharMap;
-    Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping,bool right);
-    void align_right();
+    Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping,Align align);
+    void update_align();
     const CharMap mapping;
 };
 
@@ -133,7 +135,7 @@ public:
     void load_image(const std::string &filename);
     void load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;
-    Text *get_text(const std::string &str,const std::string &name,bool right=false) const;
+    Text *get_text(const std::string &str,const std::string &name,Text::Align align) const;
 protected:
     SpriteManager(size_t maxid);
     ~SpriteManager();

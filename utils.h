@@ -8,12 +8,14 @@ public:
     Fps();
     ~Fps();
 protected:
+    virtual bool key_down(SDLKey key);
     virtual bool frame_entered(float t,float dt);
     virtual void register_self();
     virtual void unregister_self();
     int frame;
     float update_t;
     Text *text;
+    bool display;
 };
 
 class Killer : public Listener {

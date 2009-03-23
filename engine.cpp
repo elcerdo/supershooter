@@ -244,7 +244,7 @@ void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
     os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<endl;
 }
 
-Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping, bool right) : Sprite(id,w,h,name), mapping(mapping), right(right) {
+Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping,Align align) : Sprite(id,w,h,name), mapping(mapping), align(align) {
     float x=0;
     for (std::string::const_iterator istr=str.begin(); istr!=str.end(); istr++) {
         CharMap::const_iterator istate=mapping.find(*istr);
@@ -258,7 +258,7 @@ Text::Text(unsigned int id,float w,float h,const std::string &name,const std::st
         x+=w-2.;
     }
 
-    if (right) align_right();
+    update_align();
 }
 
 void Text::draw(float dt) const {
@@ -276,11 +276,19 @@ void Text::dump(std::ostream &os,const std::string &indent) const {
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
-void Text::align_right() {
-    //cx=w-2.;
-    //for (Children::const_iterator i=children.begin(); i!=children.end(); i++) cx-=(*i)->w-2.;
-    cx=(w-2.)*(1.-children.size());
+void Text::update_align() {
+    switch (align) {
+    case RIGHT:
+        cx=(w-2.)*(1.-children.size()); break;
+    case CENTER:
+        cx=-(w-2.)*children.size()/2.; break;
+    case LEFT:
+    default:
+        break;
+    }
 }
+
+double Text::width() const { return factorx*(w-2.)*children.size(); }
 
 void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
 
@@ -320,7 +328,7 @@ void Text::update(const std::string &str) {
         istr++;
     }
 
-    if (right) align_right();
+    update_align();
 }
 
 //***********************************************************
@@ -397,8 +405,10 @@ void SpriteManager::load_image(const std::string &filename) {
     if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR); }
     glBindTexture(GL_TEXTURE_2D,ids[currentid]);
     glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
+    //glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    //glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
 
     if (what[3].matched and what[5].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str()),atoi(std::string(what[6]).c_str())); //animated with state
     else if (what[3].matched) idmap[what[2]]=Record(ids[currentid],surf,atoi(std::string(what[4]).c_str())); //state
@@ -422,13 +432,13 @@ Sprite *SpriteManager::get_sprite(const std::string &name) const {
 
 }
 
-Text *SpriteManager::get_text(const std::string &str,const std::string &name,bool right) const {
+Text *SpriteManager::get_text(const std::string &str,const std::string &name,Text::Align align) const {
     IdMap::const_iterator match=idmap.find(name);
     if (match==idmap.end()) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
     if (match->second.type==Record::STATIC) throw Except(Except::SS_SPRITE_UNKNOWN_ERR,name);
 
     nsprites_created++;
-    return new Text(match->second.id,match->second.surface->w,match->second.surface->h,match->first,str,mapping,right);
+    return new Text(match->second.id,match->second.surface->w,match->second.surface->h,match->first,str,mapping,align);
 }
 
 void SpriteManager::dump(std::ostream &os) const {

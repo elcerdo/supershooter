@@ -14,7 +14,7 @@ MessageManager::MessageManager(size_t nmessage,size_t nfade) : nmessage(nmessage
 MessageManager::~MessageManager() { unregister_self(); }
 
 void MessageManager::add_message(const std::string &message) {
-    Text *text=SpriteManager::get()->get_text(message,"font00",true);
+    Text *text=SpriteManager::get()->get_text(message,"font00",Text::RIGHT);
     text->x=SdlManager::get()->width-8;
     text->factorx=.5;
     text->factory=.5;
