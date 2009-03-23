@@ -2,8 +2,11 @@
 #include "except.h"
 #include "utils.h"
 #include "message.h"
+#include <pwd.h>
 #include <cmath>
+#include <list>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <iomanip>
 using std::cout;
@@ -16,13 +19,19 @@ public:
         body->z=-1;
         //body->factorx=2.;
         //body->factory=2.;
-        turrel_left=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
+        turrel_up=body->create_child("turret00");
+        turrel_up->x=6;
+        turrel_up->y=0;
+        turrel_up->cx=10;
+        turrel_up->z=1;
+        turrel_up->angle=-M_PI/180.*0;
+        turrel_left=body->create_child("turret00");
         turrel_left->x=-16;
         turrel_left->y=-8;
         turrel_left->cx=10;
         turrel_left->z=1;
         turrel_left->angle=-M_PI/180.*15;
-        turrel_right=dynamic_cast<AnimatedSprite*>(body->create_child("turret00"));
+        turrel_right=body->create_child("turret00");
         turrel_right->x=-16;
         turrel_right->y=8;
         turrel_right->cx=10;
@@ -40,20 +49,25 @@ public:
         //body->y+=dt*speed*sin(angle);
 
         if (reload>0) reload-=dt;
+        if (reload2>0) reload2-=dt;
 
+        if (shooting and reload2<=0) {
+            reload2+=0.005;
+            BulletManager::get()->shoot_from_sprite(turrel_up,0,2000,0,"bullet05",7)->sprite;
+        }
         if (shooting and reload<=0) {
-            reload+=0.05;
+            reload+=0.1;
             ShipManager::get()->score+=7;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",10)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",10)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",10)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
         }
 
-        if (shooting) { turrel_left->state=1; turrel_right->state=1; }
-        else { turrel_left->state=0; turrel_right->state=0; }
+        if (shooting) { dynamic_cast<StateSprite*>(turrel_left)->state=1; dynamic_cast<StateSprite*>(turrel_right)->state=1; }
+        else { dynamic_cast<StateSprite*>(turrel_left)->state=0; dynamic_cast<StateSprite*>(turrel_right)->state=0; }
 
         return true;
     }
@@ -108,11 +122,13 @@ protected:
         CollisionManager::get()->spaces[1].second.erase(this);
     }
 
-    AnimatedSprite *turrel_left;
-    AnimatedSprite *turrel_right;
+    Sprite *turrel_up;
+    Sprite *turrel_left;
+    Sprite *turrel_right;
     bool shooting;
     //float angle,speed;
     float reload;
+    float reload2;
 };
     
 
@@ -146,6 +162,7 @@ public:
         if (final_score_text) delete final_score_text;
 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) delete *i;
+        while (not hiscore_texts.empty()) { delete hiscore_texts.front(); hiscore_texts.pop_front(); }
 
         delete ship_health;
         delete ship_score;
@@ -192,6 +209,8 @@ protected:
             delete final_score;
             delete final_text;
             final_text=final_score_text=final_score=NULL;
+            while (not hiscore_texts.empty()) { delete hiscore_texts.front(); hiscore_texts.pop_front(); }
+            current_hiscore_text=NULL;
             state=IN_MENU;
         }
         return true;
@@ -243,6 +262,8 @@ protected:
                 final_score->x=final_score_text->x;
                 final_score->factorx=final_score->factory=1.5;
                 final_score->y=final_score_text->y+40;
+
+                update_hiscores(ShipManager::get()->score,final_score->y+70);
             } else {
                 {
                 std::stringstream ss;
@@ -277,12 +298,17 @@ protected:
                     final_score->x=final_score_text->x;
                     final_score->factorx=final_score->factory=1.5;
                     final_score->y=final_score_text->y+40;
+
+                    update_hiscores(ShipManager::get()->score,final_score->y+70);
                 }
             }
         } else if (state==GAME_OVER) {
             final_score_text->draw(dt);
             final_text->draw(dt);
             final_score->draw(dt);
+            blink-=dt;
+            if (blink<0 and current_hiscore_text) { blink+=.5; current_hiscore_text->alpha=1.-current_hiscore_text->alpha; current_hiscore_text->update_alpha(); }
+            for (HiScoreTexts::const_iterator ii=hiscore_texts.begin(); ii!=hiscore_texts.end(); ii++) (*ii)->draw(dt);
         }
                 
         for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) {
@@ -299,6 +325,60 @@ protected:
         return true;
     }
     Sprite *flogo,*blogo;
+
+    typedef std::list<Text*> HiScoreTexts;
+    HiScoreTexts hiscore_texts;
+    Text *current_hiscore_text;
+    float blink;
+    typedef std::multimap<int,std::string> HiScore;
+    typedef std::map<std::string,HiScore> HiScores;
+    void update_hiscores(long int myscore,float base_y) {
+        const passwd *pass=getpwuid(getuid());
+        std::string hiscorefile(pass->pw_dir);
+        hiscorefile+="/.supershooter";
+        HiScores hi;
+
+        {
+        std::ofstream ff(hiscorefile.c_str(),std::ios::app);
+        ff<<wavename<<" "<<pass->pw_name<<" "<<myscore<<endl;
+        }
+        
+        {
+        std::ifstream ff(hiscorefile.c_str());
+        while (not ff.eof()) {
+            char user[32];
+            char name[32];
+            long int score;
+
+            ff>>name>>std::ws>>user>>std::ws>>score;
+            if (ff.fail()) break;
+
+            hi[std::string(name)].insert(std::make_pair(score,user));
+        }
+        }
+
+        HiScores::const_iterator ii=hi.find(wavename);
+        if (ii==hi.end()) return;
+
+        size_t k=5;
+        HiScore::const_reverse_iterator jj=ii->second.rbegin();
+        while (jj!=ii->second.rend() and k>0) {
+            std::stringstream ss;
+            ss<<std::setw(10)<<std::setfill('0')<<jj->first;
+            Text *text=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
+            text->x=SdlManager::get()->width/2.;
+            text->y=base_y;
+            hiscore_texts.push_back(text);
+
+            if (jj->second==pass->pw_name and jj->first==myscore) current_hiscore_text=text;
+
+            k--;
+            base_y+=32;
+            jj++;
+        }
+
+        blink=0.5;
+    }
 
     enum State {
         IN_MENU,
