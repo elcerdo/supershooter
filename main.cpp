@@ -16,15 +16,7 @@ class BigShip : public Ship, public Listener {
 public:
     BigShip() : Ship(100,10000), shooting(false), reload(0) {
         body=SpriteManager::get()->get_sprite("bigship00");
-        body->z=-1;
-        //body->factorx=2.;
-        //body->factory=2.;
-        turrel_up=body->create_child("turret00");
-        turrel_up->x=6;
-        turrel_up->y=0;
-        turrel_up->cx=10;
-        turrel_up->z=1;
-        turrel_up->angle=-M_PI/180.*0;
+        body->z=.1;
         turrel_left=body->create_child("turret00");
         turrel_left->x=-16;
         turrel_left->y=-8;
@@ -53,7 +45,7 @@ public:
 
         if (shooting and reload2<=0) {
             reload2+=0.005;
-            BulletManager::get()->shoot_from_sprite(turrel_up,0,2000,0,"bullet05",7)->sprite;
+            BulletManager::get()->shoot_from_sprite(body,0,2000,0,"bullet05",7)->sprite;
         }
         if (shooting and reload<=0) {
             reload+=0.1;
@@ -122,7 +114,6 @@ protected:
         CollisionManager::get()->spaces[1].second.erase(this);
     }
 
-    Sprite *turrel_up;
     Sprite *turrel_left;
     Sprite *turrel_right;
     bool shooting;

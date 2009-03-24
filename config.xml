@@ -4,8 +4,8 @@
 	<ships>
 		<ship health="20" id="bigship" score="1000">
 			<sprite name="bigship00" z="-1." angle="90">
-				<sprite id="turretr" name="turret00" z="1." angle="-45" x="-16" y="-8" cx="10" state="1"/>
-				<sprite id="turretl" name="turret00" z="1." angle="45"  x="-16" y="8"  cx="10" state="1"/>
+				<sprite id="turretr" name="turret00" z="1." angle="-45" x="-10" y="-8" cx="10" state="1"/>
+				<sprite id="turretl" name="turret00" z="1." angle="45"  x="-10" y="8"  cx="10" state="1"/>
 			</sprite> 
 			<program id="main">
 				<speed value="100."/>
