@@ -38,6 +38,7 @@ public:
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
+    void toogle_fullscreen() const;
     void set_background_color(float r,float g,float b);
     const float width,height;
 protected:
@@ -112,7 +113,6 @@ friend class SpriteManager;
 public:
     virtual void draw(float dt) const;
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
-    double width() const;
     void update(const std::string &str);
     void update_alpha();
     enum Align { LEFT,CENTER,RIGHT };

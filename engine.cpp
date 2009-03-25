@@ -51,6 +51,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 	glLoadIdentity();
 }
 
+void SdlManager::toogle_fullscreen() const { SDL_WM_ToggleFullScreen(screen); }
 const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
 void SdlManager::get_mouse_position(float &x,float &y) const {
     int xx,yy;
@@ -256,7 +257,7 @@ Text::Text(unsigned int id,float w,float h,const std::string &name,const std::st
         current->x=x;
         current->z=5.;
         current->alpha=alpha;
-        x+=w-2.;
+        x+=current->w-2.;
     }
 
     update_align();
@@ -287,9 +288,15 @@ void Text::update_align() {
     default:
         break;
     }
-}
 
-double Text::width() const { return factorx*(w-2.)*(children.size()-1.); }
+    if (not children.empty()) {
+        const_cast<float&>(w)=factorx*((*children.begin())->w-2.)*(children.size()-1.);
+        const_cast<float&>(h)=(*children.begin())->h;
+    } else {
+        const_cast<float&>(w)=0;
+        const_cast<float&>(h)=0;
+    }
+}
 
 void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
 
@@ -307,7 +314,7 @@ void Text::update(const std::string &str) {
         current->x=x;
         current->z=5.;
         current->alpha=alpha;
-        x+=w-2.;
+        x+=current->w-2.;
 
         ichild++;
         istr++;
@@ -324,7 +331,7 @@ void Text::update(const std::string &str) {
         current->x=x;
         current->z=5.;
         current->alpha=alpha;
-        x+=w-2.;
+        x+=current->w-2.;
 
         istr++;
     }

@@ -143,8 +143,21 @@ public:
         ship_score->y=SdlManager::get()->height-16;
 
         for (size_t k=0; k<255; k++) stars.insert(new Star(true));
+
+        main_menu=new Menu(flogo->y+200,50);
+        main_menu->append_item("start");
+        main_menu->append_item("fullscreen");
+        main_menu->append_item("quit");
+
+        cursor=SpriteManager::get()->get_sprite("cursor");
+        cursor->cx=cursor->w/2.;
+        cursor->cy=cursor->h/2.;
+        cursor->z=8;
     }
     ~MainMenu() {
+        delete cursor;
+        delete main_menu;
+
         if (ship) delete ship;
         if (title_name) delete title_name;
         if (title_start) delete title_start;
@@ -162,7 +175,11 @@ public:
     }
 protected:
     virtual bool mouse_down(int button, float x,float y) {
-        if (button==1 and state==IN_MENU) {
+        if (button!=1) return true;
+        main_menu->update(x,y);
+        if (state==IN_MENU and main_menu->is_selected("quit")) { return false;
+        } else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toogle_fullscreen();
+        } else if (state==IN_MENU and main_menu->is_selected("start")) {
             state=GAME_START;
             ShipManager::get()->flush_ships();
             BulletManager::get()->flush_bullets();
@@ -171,7 +188,7 @@ protected:
             ShipManager::get()->score=0;
             title_start=new Drifting("GAME START","font01",2.5,SdlManager::get()->height/3.,true);
             title_name=new Drifting(wavename,"font00",1.,title_start->text->y+50,false);
-        } else if (button==1 and state==GAME_OVER) game_over_to_menu();
+        } else if (state==GAME_OVER) game_over_to_menu();
         return true;
     }
     virtual bool key_down(SDLKey key) {
@@ -218,6 +235,9 @@ protected:
             blogo->alpha=(.4+.2*cos(2*M_PI*t/4.))/2.;
             blogo->draw(dt);
             flogo->draw(dt);
+            main_menu->draw(dt);
+            SdlManager::get()->get_mouse_position(cursor->x,cursor->y);
+            cursor->draw(dt);
         } else if (state==GAME_START) {
             display_health_and_score(dt);
 
@@ -246,8 +266,8 @@ protected:
             Star *current=*i;
             current->sprite->y+=current->v*dt;
             if (current->sprite->y>SdlManager::get()->height) {
-                delete current;
                 stars.erase(i);
+                delete current;
                 current=new Star;
                 stars.insert(current);
             }
@@ -391,6 +411,45 @@ protected:
     Drifting *title_start;
     Drifting *title_name;
     std::string wavename;
+
+    struct Menu {
+        Menu(float base_y,float inc_y) : base_y(base_y), inc_y(inc_y), selected(NULL) {}
+        ~Menu() { for (MenuItems::const_iterator i=items.begin(); i!=items.end(); i++) delete *i; }
+        void append_item(const std::string &str) { items.insert(new MenuItem(str,base_y)); base_y+=inc_y; }
+        void draw(float dt) { for (MenuItems::const_iterator i=items.begin(); i!=items.end(); i++) (*i)->text->draw(dt); }
+        void reset() { selected=NULL; }
+        bool is_selected(const std::string &title) const { return selected and selected->str==title; }
+        void update(float x,float y)  {
+            reset();
+            for (MenuItems::const_iterator i=items.begin(); i!=items.end() and y>(*i)->top; i++) if ((*i)->bottom>y and x>(*i)->left and x<(*i)->right) {
+                selected=*i;
+                return;
+            }
+        }
+        struct MenuItem {
+            MenuItem(const std::string &str,float base_y) : text(SpriteManager::get()->get_text(str,"font00",Text::CENTER)), str(str) {
+                text->x=SdlManager::get()->width/2.;
+                text->y=base_y;
+                top=text->y-text->h/2.;
+                bottom=text->y+text->h/2.;
+                left=text->x-text->w/2.;
+                right=text->x+text->w/2.;
+            }
+            ~MenuItem() { delete text; }
+            Text *text;
+            std::string str;
+            float top,bottom,left,right;
+        };
+
+        struct MenuItemOrder { bool operator()(const MenuItem *a,const MenuItem *b) { return a->top < b->top; } };
+        typedef std::set<MenuItem*,MenuItemOrder> MenuItems;
+        MenuItems items;
+        MenuItem *selected;
+
+        float base_y,inc_y;
+    };
+    Menu *main_menu;
+    Sprite *cursor;
 };
 
 
