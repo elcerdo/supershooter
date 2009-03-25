@@ -252,7 +252,7 @@ protected:
             display_health_and_score(dt);
 
             if (ship->health<0) update_hiscores("GAME OVER",ShipManager::get()->score);
-            else if (ShipManager::get()->wave_finished()) update_hiscores("WAVE COMPLETED",ShipManager::get()->score);
+            else if (ShipManager::get()->wave_finished()) update_hiscores("WAVE COMPLETED",ShipManager::get()->score+1000*ship->health);
         } else if (state==GAME_OVER) {
             final_score_text->draw(dt);
             final_text->draw(dt);
