@@ -232,7 +232,7 @@ protected:
             final_text->draw(dt);
             final_score->draw(dt);
             blink-=dt;
-            if (blink<0 and current_hiscore_text) { blink+=.5; } //current_hiscore_text->alpha=1.-current_hiscore_text->alpha; current_hiscore_text->update_alpha(); }
+            if (blink<0 and current_hiscore_text) { blink+=.5; current_hiscore_text->alpha=1.-current_hiscore_text->alpha; current_hiscore_text->update_alpha(); }
             for (HiScoreTexts::const_iterator ii=hiscore_texts.begin(); ii!=hiscore_texts.end(); ii++) (*ii)->draw(dt);
         }
                 
@@ -271,7 +271,7 @@ protected:
         final_score_text->y=final_text->y+100;
 
         std::stringstream ss;
-        ss<<std::setw(10)<<std::setfill('0')<<ShipManager::get()->score;
+        ss<<std::setw(10)<<std::setfill('0')<<myscore;
         ship_score->update(ss.str());
         final_score=SpriteManager::get()->get_text(ss.str(),"font00",Text::CENTER);
         final_score->x=final_score_text->x;

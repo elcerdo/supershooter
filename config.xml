@@ -32,8 +32,42 @@
 				</program>
 			</program>
 		</ship>
+		<ship health="100" id="alphonse" score="6666">
+			<sprite name="bigship02" z=".5">
+				<sprite name="arrow" id="t0" z=".4" x="5" y="-30"/>
+				<sprite name="arrow" id="t1" z=".4" x="5" y="30"/>
+			</sprite>
+			<program id="main">
+				<speed value="100."/>
+				<wait time=".5"/>
+				<program repeat="-1">
+					<program repeat="10">
+						<positionrel id="t0" y="3" angle="-2"/>
+						<positionrel id="t1" y="-3" angle="2"/>
+						<shoot id="t0" name="bullet05" speed="900"/>
+						<shoot id="t1" name="bullet05" speed="900"/>
+						<wait time=".1"/>
+					</program>
+					<program repeat="10">
+						<positionrel id="t0" y="-3" angle="2"/>
+						<positionrel id="t1" y="3" angle="-2"/>
+						<shoot id="t0" name="bullet05" speed="900"/>
+						<shoot id="t1" name="bullet05" speed="900"/>
+						<wait time=".1"/>
+					</program>
+				</program>
+			</program>
+		</ship>
 		<ship id="basicship" health="10" score="150">
 			<sprite name="ship00" z="2."/>
+			<program id="main">
+				<speed value="200."/>
+				<wait time=".8"/>
+				<program repeat="3">
+					<wait time=".4"/>
+					<shoot speed="400" name="bullet02"/>
+				</program>
+			</program>
 			<program id="right">
 				<speed value="200."/>
 				<wait time=".8"/>
@@ -87,6 +121,11 @@
 			<spawn id="bigship" program="main" x="0.75" y="-0.2" angle="85"/>
 			<wait  time="2."/>
 			<spawn id="crotte" program="main"/>
+			<wait time="3.5"/>
+			<spawn id="alphonse" x=".25"/>
+			<spawn id="alphonse" x=".75"/>
+			<line  id="basicship" startx="0.2" starty="-.1" endx="0.8" endy="-0.1" n="11"/>
+			<wait time="2."/>
 			<wait/>
 		</wave>
 	</waves>

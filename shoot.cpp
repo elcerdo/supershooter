@@ -289,7 +289,7 @@ void ShipManager::exec() {
             stack.push_front(std::make_pair(current,repeat));
             current=current->FirstChildElement();
         } else if (current->ValueStr()=="spawn") {
-            std::string shipid,prgid;
+            std::string shipid,prgid="main";
             float x=.5,y=-.05,angle=90;
             current->QueryValueAttribute("id",&shipid);
             current->QueryValueAttribute("program",&prgid);
@@ -303,7 +303,7 @@ void ShipManager::exec() {
 
             current=current->NextSiblingElement();
         } else if (current->ValueStr()=="line") {
-            std::string shipid,prgid;
+            std::string shipid,prgid="main";
             float sx=.25,sy=-.05;
             float ex=.25,ey=-.05;
             float angle=90;
