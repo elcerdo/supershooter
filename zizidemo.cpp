@@ -29,7 +29,7 @@ protected:
         sprites.push_back(s);
 
         AnimatedSprite *cb=dynamic_cast<AnimatedSprite*>(s->create_child("bullet00"));
-        AnimatedSprite *ca=dynamic_cast<AnimatedSprite*>(s->create_child("boom00"));
+        AnimatedSprite *ca=dynamic_cast<AnimatedSprite*>(s->create_child("burst00"));
         ca->repeat=false;
         ca->x=-16;
         ca->y=+16;

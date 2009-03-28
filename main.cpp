@@ -14,24 +14,18 @@ using std::endl;
 
 class BigShip : public Ship, public Listener {
 public:
-    BigShip() : Ship(100,10000), shooting(false), reload(0) {
-        body=SpriteManager::get()->get_sprite("bigship00");
-        body->z=.1;
-        turrel_left=body->create_child("turret00");
-        turrel_left->x=-16;
-        turrel_left->y=-8;
-        turrel_left->cx=10;
-        turrel_left->z=1;
-        turrel_left->angle=-M_PI/180.*15;
-        turrel_right=body->create_child("turret00");
-        turrel_right->x=-16;
-        turrel_right->y=8;
-        turrel_right->cx=10;
-        turrel_right->z=1;
-        turrel_right->angle=M_PI/180.*15;
-
-        body->x=700;
-        body->y=300;
+    BigShip() : Ship(100,10000), shooting(false), reload(0), reload2(0) {
+        body=SpriteManager::get()->get_sprite("bigship01");
+        Sprite *lburst=body->create_child("burst00");
+        dynamic_cast<AnimatedSprite*>(lburst)->speed=24;
+        lburst->z+=.1;
+        lburst->cx=-40;
+        lburst->cy=-10;
+        Sprite *rburst=body->create_child("burst00");
+        dynamic_cast<AnimatedSprite*>(rburst)->speed=24;
+        rburst->z+=.1;
+        rburst->cx=-40;
+        rburst->cy=9;
         body->angle=-M_PI/2.;
     }
 
@@ -50,16 +44,13 @@ public:
         if (shooting and reload<=0) {
             reload+=0.1;
             ShipManager::get()->score+=7;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,0,600,0,"bullet00",5)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_left,-M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,0,600,0,"bullet00",5)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
-            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(turrel_right,-M_PI/180.*10.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,M_PI/180.*15.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,M_PI/180.*25.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,M_PI/180.*35.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,-M_PI/180.*15.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,-M_PI/180.*25.,600,0,"bullet00",5)->sprite)->speed=20.;
+            dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,-M_PI/180.*35.,600,0,"bullet00",5)->sprite)->speed=20.;
         }
-
-        if (shooting) { dynamic_cast<StateSprite*>(turrel_left)->state=1; dynamic_cast<StateSprite*>(turrel_right)->state=1; }
-        else { dynamic_cast<StateSprite*>(turrel_left)->state=0; dynamic_cast<StateSprite*>(turrel_right)->state=0; }
 
         return true;
     }
@@ -76,8 +67,6 @@ protected:
 
     virtual bool mouse_down(int button, float x,float y) {
         if (button==1) shooting=true;
-        else if (button==4) { turrel_left->angle+=M_PI/180.*5; turrel_right->angle-=M_PI/180.*5.; }
-        else if (button==5) { turrel_left->angle-=M_PI/180.*5; turrel_right->angle+=M_PI/180.*5.; }
         return true;
     }
     virtual bool mouse_up(int button,float x,float y) {
@@ -85,19 +74,7 @@ protected:
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
-        //const unsigned char *state=SdlManager::get()->get_key_state();
-        //if (state[SDLK_LEFT]) angle-=M_PI/180.*dt*180.;
-        //if (state[SDLK_RIGHT]) angle+=M_PI/180.*dt*180.;
-        //if (state[SDLK_UP]) speed+=dt*300.;
-        //if (state[SDLK_DOWN]) speed-=dt*300.;
-        //speed-=speed*1.*dt;
         SdlManager::get()->get_mouse_position(body->x,body->y);
-
-
-        //float turrel_angle=M_PI/180.*(30.+20.*cos(2*M_PI*.8*t));
-        //turrel_left->angle=-turrel_angle;
-        //turrel_right->angle=turrel_angle;
-
         move(dt);
         draw(dt);
 
@@ -114,10 +91,7 @@ protected:
         CollisionManager::get()->spaces[1].second.erase(this);
     }
 
-    Sprite *turrel_left;
-    Sprite *turrel_right;
     bool shooting;
-    //float angle,speed;
     float reload;
     float reload2;
 };
