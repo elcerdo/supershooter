@@ -15,6 +15,9 @@ struct Except {
         SS_XML_PARSING_ERR,
         SS_XML_ID_UNKNOWN_ERR,
         SS_XML_ID_DUPLICATE_ERR,
+        SS_MUSIC_LOADING_ERR,
+        SS_MUSIC_DUPLICATE_ERR,
+        SS_MUSIC_UNKNOWN_ERR,
     };
     Except(ExceptType n,const std::string &str="") : n(n), str(str) {};
     ExceptType n;

@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 
 find_package(SDL REQUIRED)
 find_package(SDL_image REQUIRED)
+find_package(SDL_mixer REQUIRED)
 find_package(OpenGL REQUIRED)
 
 add_definitions(-DTIXML_USE_STL)
@@ -10,6 +11,8 @@ subdirs(tinyxml)
 
 add_library(zizi
     engine.cpp
+    sprite.cpp
+    sound.cpp
     collision.cpp
     message.cpp
     shoot.cpp
@@ -19,6 +22,7 @@ target_link_libraries(zizi
     boost_regex
     tinyxml
     ${SDL_LIBRARY}
+    ${SDLMIXER_LIBRARY}
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
 

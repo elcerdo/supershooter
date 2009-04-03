@@ -2,6 +2,7 @@
 #define __MESSAGE_H__
 
 #include "engine.h"
+#include "sprite.h"
 #include <deque>
 
 class MessageManager : public Listener {

@@ -2,6 +2,7 @@
 #define __UTILS_H__
 
 #include "engine.h"
+#include "sprite.h"
 
 class Fps : public Listener {
 public:

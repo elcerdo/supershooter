@@ -2,6 +2,7 @@
 #define __SHOOT_H__
 
 #include "engine.h"
+#include "sprite.h"
 #include "collision.h"
 #include "tinyxml/tinyxml.h"
 #include <vector>

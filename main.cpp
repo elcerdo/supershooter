@@ -2,6 +2,7 @@
 #include "except.h"
 #include "utils.h"
 #include "message.h"
+#include "sound.h"
 #include <pwd.h>
 #include <cmath>
 #include <list>
@@ -166,6 +167,8 @@ protected:
         return true;
     }
     virtual bool key_down(SDLKey key) {
+        if (key==SDLK_m) { SoundManager::get()->toogle_musics(); return true; }
+
         if (key==SDLK_ESCAPE and state==IN_MENU) {
             return false;
         } else if (key==SDLK_ESCAPE and state==IN_GAME) {
@@ -434,6 +437,12 @@ int main() {
         SdlManager::init();
         SdlManager::get()->set_background_color(0,0,0);
 
+        SoundManager::init();
+        SoundManager::get()->load_directory("data");
+        SoundManager::get()->play_musics_continuious=true;
+        SoundManager::get()->play_music("ultraetron");
+        SoundManager::get()->dump(cout);
+
         SpriteManager::init();
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump();
@@ -450,26 +459,13 @@ int main() {
         SdlManager::get()->register_listener(ShipManager::get());
         ShipManager::get()->dump();
         {
-            //ShipManager::get()->launch_enemy_ship("bigship","main",400,0,M_PI/2.);
-            //ShipManager::get()->launch_enemy_ship("bigship","main",600,0,M_PI/2.);
-            //XmlShip *aa;
-            //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","left",y,-100,M_PI/2.);
-            //for (float y=200; y<=800; y+=50) ShipManager::get()->launch_enemy_ship("basicship","right",y,-50,M_PI/2.);
-
-            //Killer killer;
-            //BigShip bigship;
-            //Pusher pusher;
-            //SdlManager::get()->register_listener(&killer);
-            //SdlManager::get()->register_listener(&pusher);
-            //SdlManager::get()->register_listener(&bigship);
-
             Fps fps;
             MainMenu mainmenu;
             SdlManager::get()->register_listener(&mainmenu);
             SdlManager::get()->register_listener(&fps);
             SdlManager::get()->main_loop();
-
         }
+        SoundManager::free();
         ShipManager::free();
         BulletManager::free();
         MessageManager::free();

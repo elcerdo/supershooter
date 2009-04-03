@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "except.h"
 #include "utils.h"
+#include "sound.h"
 #include <list>
 #include <iostream>
 using std::cout;
@@ -18,6 +19,9 @@ public:
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
+        case SDLK_m:
+            SoundManager::get()->toogle_musics();
+            break;
         case SDLK_SPACE:
             cout<<"*****************************"<<endl;
             for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->dump();
@@ -63,10 +67,16 @@ int main() {
     try {
         SdlManager::init();
         SpriteManager::init();
+        SoundManager::init();
 
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->dump(cout);
 
+        SoundManager::get()->load_directory("data");
+        SoundManager::get()->play_musics_continuious=true;
+        SoundManager::get()->dump(cout);
+
+        SoundManager::get()->play_music("ultraetron");
         {
         Spawner spawner;
         Fps fps;
@@ -76,6 +86,7 @@ int main() {
         SdlManager::get()->main_loop();
         }
 
+        SoundManager::free();
         SdlManager::free();
         SpriteManager::free();
     } catch (Except e) {
