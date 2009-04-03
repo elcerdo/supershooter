@@ -8,8 +8,13 @@ using std::endl;
 
 class Spawner : public Listener {
 public:
-    Spawner() {}
-    ~Spawner() { unregister_self(); }
+    Spawner() {
+        cursor=SpriteManager::get()->get_sprite("cursor");
+        cursor->cx=cursor->w/2;
+        cursor->cy=cursor->h/2;
+        cursor->z=3;
+    }
+    ~Spawner() { unregister_self(); delete cursor;}
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
@@ -39,6 +44,8 @@ protected:
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
+        SdlManager::get()->get_mouse_position(cursor->x,cursor->y);
+        cursor->draw(dt);
         for (Sprites::const_iterator i=sprites.begin(); i!=sprites.end(); i++) (*i)->draw(dt);
         return true;
     }
@@ -46,6 +53,7 @@ protected:
         while (not sprites.empty()) { delete sprites.back(); sprites.pop_back(); }
     }
     typedef std::list<Sprite*> Sprites;
+    Sprite *cursor;
     Sprites sprites;
 };
 
