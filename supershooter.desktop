@@ -11,5 +11,5 @@ Categories=Application;Game;ArcadeGame;
 TryExec=supershooter
 Exec=supershooter
 
-Icon=liquidwar.xpm
+Icon=supershooter.xpm
 Terminal=false
