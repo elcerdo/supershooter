@@ -246,12 +246,16 @@ void ShipManager::flush_waves() { MessageManager::get()->add_message("flushing w
 void ShipManager::flush_ships() { unregister_self(); }
 
 bool ShipManager::frame_entered(float t,float dt) {
-    for (Explosions::iterator i=explosions.begin(); i!=explosions.end() and t>i->first+1.; i++) { delete i->second; explosions.erase(i); } //explosions last one second
+    for (Explosions::iterator i=explosions.begin(); i!=explosions.end() and t>i->first+1.;) { //explosions last one second and are ordered
+        Explosions::iterator ii=i++;
+        delete ii->second; explosions.erase(ii);
+    }
     for (Explosions::const_iterator i=explosions.begin(); i!=explosions.end(); i++) i->second->draw(dt);
 
     size_t kspace=0;
     for (Spaces::iterator ships=spaces.begin(); ships!=spaces.end(); ships++) {
-        for (Ships::iterator i=ships->begin(); i!=ships->end(); i++) {
+        for (Ships::iterator ii=ships->begin(); ii!=ships->end();) {
+            Ships::iterator i=ii++;
             if ((*i)->health<0 or not (*i)->move(dt)) {
                 Sprite *sprite=SpriteManager::get()->get_sprite("boom00");
                 sprite->x=(*i)->get_x();
@@ -261,9 +265,9 @@ bool ShipManager::frame_entered(float t,float dt) {
                 explosions.insert(std::make_pair(t,sprite));
 
                 score+=(*i)->score;
+                delete *i;
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);
-                delete *i;
                 ndestroyed++;
                 continue;
             }
@@ -488,8 +492,8 @@ void BulletManager::unregister_self() {
     size_t kspace=0;
     for (Spaces::iterator bullets=spaces.begin(); bullets!=spaces.end(); bullets++) {
         for (Bullets::const_iterator i=bullets->begin(); i!=bullets->end(); i++) {
-            CollisionManager::get()->spaces[kspace].first.erase(*i);
             delete *i;
+            CollisionManager::get()->spaces[kspace].first.erase(*i);
         }
         ndestroyed+=bullets->size();
         bullets->clear();
@@ -556,13 +560,14 @@ void BulletManager::move(float dt) {
     size_t kspace=0;
     for (Spaces::iterator j=spaces.begin(); j!=spaces.end(); j++) {
         Bullets &bullets=*j;
-        for (Bullets::iterator i=bullets.begin(); i!=bullets.end(); i++) {
+        for (Bullets::iterator ii=bullets.begin(); ii!=bullets.end();) {
+            Bullets::iterator i=ii++;
             Bullet *bullet=*i;
             bullet->move(dt);
             if (bullet->sprite->x<-10 or bullet->sprite->x>SdlManager::get()->width+10 or bullet->sprite->y<-10 or bullet->sprite->y>SdlManager::get()->height+10) {
                 delete bullet;
-                bullets.erase(i);
                 CollisionManager::get()->spaces[kspace].first.erase(bullet);
+                bullets.erase(i);
                 ndestroyed++;
             }
         }

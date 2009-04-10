@@ -45,7 +45,7 @@ protected:
 
     virtual bool frame_entered(float t,float dt) { return true; }
     virtual void register_self() {
-        aa=new StaticShip(SpriteManager::get()->get_sprite("aa"),10000);
+        aa=new StaticShip(SpriteManager::get()->get_sprite("aa"),1000);
         aa->body->factorx=2.;
         aa->body->factory=.5;
         aa->body->angle=M_PI/180.*90.;

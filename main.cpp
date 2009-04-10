@@ -242,11 +242,12 @@ protected:
             for (HiScoreTexts::const_iterator ii=hiscore_texts.begin(); ii!=hiscore_texts.end(); ii++) (*ii)->draw(dt);
         }
                 
-        for (Stars::const_iterator i=stars.begin(); i!=stars.end(); i++) {
-            Star *current=*i;
+        for (Stars::const_iterator i=stars.begin(); i!=stars.end();) {
+            Stars::const_iterator ii=i++;
+            Star *current=*ii;
             current->sprite->y+=current->v*dt;
             if (current->sprite->y>SdlManager::get()->height) {
-                stars.erase(i);
+                stars.erase(ii);
                 delete current;
                 current=new Star;
                 stars.insert(current);

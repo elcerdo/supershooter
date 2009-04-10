@@ -109,7 +109,10 @@ void SdlManager::main_loop() {
         float t=ticks/1000.;
         float dt=(ticks-old_ticks)/1000.;
         old_ticks=ticks;
-        for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->frame_entered(t,dt);
+        for (Listeners::const_iterator ii=listeners.begin(); ii!=listeners.end() and not quit;) {
+            Listeners::const_iterator i=ii++;
+            quit=not (*i)->frame_entered(t,dt);
+        }
 
         SDL_GL_SwapBuffers();  
         SDL_Flip(screen);
