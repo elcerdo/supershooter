@@ -123,12 +123,13 @@ public:
         main_menu=new Menu(flogo->y+200,50);
         main_menu->append_item("start");
         main_menu->append_item("fullscreen");
+        main_menu->append_item("music");
         main_menu->append_item("quit");
 
         cursor=SpriteManager::get()->get_sprite("cursor");
         cursor->cx=cursor->w/2.;
         cursor->cy=cursor->h/2.;
-        cursor->z=8;
+        cursor->z=9.5;
     }
     ~MainMenu() {
         delete cursor;
@@ -153,9 +154,10 @@ protected:
     virtual bool mouse_down(int button, float x,float y) {
         if (button!=1) return true;
         main_menu->update(x,y);
-        if (state==IN_MENU and main_menu->is_selected("quit")) { return false;
-        } else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toogle_fullscreen();
-        } else if (state==IN_MENU and main_menu->is_selected("start")) {
+        if (state==IN_MENU and main_menu->is_selected("quit")) { return false; }
+        else if (state==IN_MENU and main_menu->is_selected("music")) { SoundManager::get()->toogle_musics(); }
+        else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toogle_fullscreen(); }
+        else if (state==IN_MENU and main_menu->is_selected("start")) {
             state=GAME_START;
             ShipManager::get()->flush_ships();
             BulletManager::get()->flush_bullets();
@@ -450,14 +452,15 @@ int main() {
         SoundManager::get()->play_music("ultraetron");
         SoundManager::get()->dump(cout);
 
+        std::string configfile;
         SpriteManager::init();
-        if (not SpriteManager::get()->load_directory("data"))
-        if (not SpriteManager::get()->load_directory("../data"))
-        if (not SpriteManager::get()->load_directory("/usr/share/supershooter/data"))
-        if (not SpriteManager::get()->load_directory("/usr/local/share/supershooter/data")) {
+        configfile="config.xml"; if (not SpriteManager::get()->load_directory("data")) {
+        configfile="../config.xml"; if (not SpriteManager::get()->load_directory("../data")) {
+        configfile="/usr/share/supershooter/config.xml"; if (not SpriteManager::get()->load_directory("/usr/share/supershooter/data")) {
+        configfile="/usr/local/share/supershooter/config.xml"; if (not SpriteManager::get()->load_directory("/usr/local/share/supershooter/data")) {
             cerr<<"can't locate sprite data..."<<endl;
             return 1;
-        }
+        }}}}
         SpriteManager::get()->dump();
 
         CollisionManager::init();
@@ -468,7 +471,7 @@ int main() {
         BulletManager::init();
         SdlManager::get()->register_listener(BulletManager::get());
 
-        ShipManager::init();
+        ShipManager::init(2,configfile);
         SdlManager::get()->register_listener(ShipManager::get());
         ShipManager::get()->dump();
         {
