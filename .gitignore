@@ -1,1 +1,5 @@
 build
+pkg
+src
+0.*
+*.tar.gz

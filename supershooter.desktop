@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+
+Name=Super Shooter
+Comment=A shoot them up game with lots of bullets
+
+Type=Application
+Categories=Application;Game;ArcadeGame;
+
+TryExec=supershooter
+Exec=supershooter
+
+Icon=liquidwar.xpm
+Terminal=false
