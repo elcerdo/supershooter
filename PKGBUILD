@@ -1,7 +1,7 @@
 # Contributor: elcerdo <georges.wbush@laposte.net>
 maintainer=elcerdo
 pkgname=supershooter
-pkgver=0.2.2
+pkgver=0.2.3
 pkgrel=1
 pkgdesc="a shoot them up game with a lot of bullets"
 arch=(x686 x86_64)
@@ -10,7 +10,7 @@ license=('GPL')
 depends=(sdl sdl_mixer sdl_image boost)
 makedepends=(cmake)
 source=(http://github.com/elcerdo/${pkgname}/tarball/${pkgver})
-md5sums=('82a7c4f0a6ee140284949bb8af019501')
+md5sums=('e1b9c38838d9620f43dacf5ca59c0c04')
 
 build() {
   cd "${srcdir}/$(ls ${srcdir} | grep "elcerdo")"
