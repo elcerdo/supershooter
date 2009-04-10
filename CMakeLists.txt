@@ -40,3 +40,11 @@ add_executable(supershooter
     main.cpp)
 target_link_libraries(supershooter
     zizi)
+
+install(TARGETS supershooter
+        RUNTIME DESTINATION bin)
+install(DIRECTORY data
+        DESTINATION share/supershooter)
+install(FILES config.xml
+        DESTINATION share/supershooter)
+

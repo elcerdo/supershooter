@@ -84,7 +84,7 @@ public:
 
     void dump(std::ostream &os=std::cout) const;
     void load_image(const std::string &filename);
-    void load_directory(const std::string &directory);
+    bool load_directory(const std::string &directory);
     Sprite *get_sprite(const std::string &name) const;
     Text *get_text(const std::string &str,const std::string &name,Text::Align align) const;
 protected:

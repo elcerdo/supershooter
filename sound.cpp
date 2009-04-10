@@ -87,9 +87,9 @@ bool SoundManager::toogle_musics() {
     return play_musics;
 }
 
-void SoundManager::load_directory(const std::string &directory) {
+bool SoundManager::load_directory(const std::string &directory) {
     DIR *dir=opendir(directory.c_str());
-    if (not dir) return;
+    if (not dir) return false;
 
     std::string prefix(directory);
     if (prefix.size()>0 and prefix[prefix.size()-1]!='/') prefix+='/';
@@ -106,6 +106,7 @@ void SoundManager::load_directory(const std::string &directory) {
     }
 
     closedir(dir);
+    return true;
 }
 
 void SoundManager::load_music(const std::string &filename) {

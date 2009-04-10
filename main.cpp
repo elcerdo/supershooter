@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+using std::cerr;
 using std::cout;
 using std::endl;
 
@@ -438,13 +439,25 @@ int main() {
         SdlManager::get()->set_background_color(0,0,0);
 
         SoundManager::init();
-        SoundManager::get()->load_directory("data");
+        if (not SoundManager::get()->load_directory("data"))
+        if (not SoundManager::get()->load_directory("../data"))
+        if (not SoundManager::get()->load_directory("/usr/share/supershooter/data"))
+        if (not SoundManager::get()->load_directory("/usr/local/share/supershooter/data")) {
+            cerr<<"can't locate sound data..."<<endl;
+            return 1;
+        }
         SoundManager::get()->play_musics_continuious=true;
         SoundManager::get()->play_music("ultraetron");
         SoundManager::get()->dump(cout);
 
         SpriteManager::init();
-        SpriteManager::get()->load_directory("data");
+        if (not SpriteManager::get()->load_directory("data"))
+        if (not SpriteManager::get()->load_directory("../data"))
+        if (not SpriteManager::get()->load_directory("/usr/share/supershooter/data"))
+        if (not SpriteManager::get()->load_directory("/usr/local/share/supershooter/data")) {
+            cerr<<"can't locate sprite data..."<<endl;
+            return 1;
+        }
         SpriteManager::get()->dump();
 
         CollisionManager::init();

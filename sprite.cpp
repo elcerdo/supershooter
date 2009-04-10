@@ -253,9 +253,9 @@ SpriteManager::~SpriteManager() {
     else std::cout<<"leak detected"<<std::endl;
 }
 
-void SpriteManager::load_directory(const std::string &directory) {
+bool SpriteManager::load_directory(const std::string &directory) {
     DIR *dir=opendir(directory.c_str());
-    if (not dir) return;
+    if (not dir) return false;
 
     std::string prefix(directory);
     if (prefix.size()>0 and prefix[prefix.size()-1]!='/') prefix+='/';
@@ -272,6 +272,7 @@ void SpriteManager::load_directory(const std::string &directory) {
     }
 
     closedir(dir);
+    return true;
 }
 
 void SpriteManager::load_image(const std::string &filename) {

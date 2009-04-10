@@ -13,7 +13,7 @@ public:
     static void init(int nchannel=2);
 
     void dump(std::ostream &os=std::cout) const;
-    void load_directory(const std::string &directory);
+    bool load_directory(const std::string &directory);
     void load_music(const std::string &filename);
     void play_music(const std::string &id);
     void play_random_music();
