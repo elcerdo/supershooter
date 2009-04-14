@@ -14,13 +14,17 @@ public:
         cursor->cx=cursor->w/2;
         cursor->cy=cursor->h/2;
         cursor->z=3;
+        click=SoundManager::get()->get_sfx("lazer");
     }
-    ~Spawner() { unregister_self(); delete cursor;}
+    ~Spawner() { unregister_self(); delete cursor; delete click; }
 protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_m:
             SoundManager::get()->toogle_musics();
+            break;
+        case SDLK_s:
+            SoundManager::get()->toogle_sfxs();
             break;
         case SDLK_SPACE:
             cout<<"*****************************"<<endl;
@@ -45,6 +49,8 @@ protected:
         cb->x=+16;
         cb->y=-16;
         cb->length=3;
+
+        click->play();
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -58,6 +64,7 @@ protected:
     }
     typedef std::list<Sprite*> Sprites;
     Sprite *cursor;
+    Sfx *click;
     Sprites sprites;
 };
 
@@ -74,9 +81,9 @@ int main() {
 
         SoundManager::get()->load_directory("data");
         SoundManager::get()->play_musics_continuious=true;
+        SoundManager::get()->play_music("ultraetron");
         SoundManager::get()->dump(cout);
 
-        SoundManager::get()->play_music("ultraetron");
         {
         Spawner spawner;
         Fps fps;

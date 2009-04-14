@@ -26,12 +26,12 @@ void Except::dump() const {
         cerr<<"xml unknown id "<<str<<endl; break;
     case SS_XML_ID_DUPLICATE_ERR:
         cerr<<"xml duplicate id "<<str<<endl; break;
-    case SS_MUSIC_LOADING_ERR:
-        cerr<<"music loading error"<<endl; break;
-    case SS_MUSIC_DUPLICATE_ERR:
-        cerr<<"music duplicate id"<<endl; break;
-    case SS_MUSIC_UNKNOWN_ERR:
-        cerr<<"music unknown "<<str<<endl; break;
+    case SS_SOUND_LOADING_ERR:
+        cerr<<"sound loading error"<<endl; break;
+    case SS_SOUND_DUPLICATE_ERR:
+        cerr<<"sound duplicate id"<<endl; break;
+    case SS_SOUND_UNKNOWN_ERR:
+        cerr<<"sound unknown "<<str<<endl; break;
     default:
         cerr<<"unknown error "<<n<<endl; break;
     }
