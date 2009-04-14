@@ -217,6 +217,8 @@ ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(n
         if (wavenodes.find(id)!=wavenodes.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR,id);
         wavenodes[id]=wave;
     }
+
+    boom=SoundManager::get()->get_sfx("boom");
 }
 
 ShipManager::~ShipManager() {
@@ -224,6 +226,7 @@ ShipManager::~ShipManager() {
     cout<<ncreated<<" ships created, "<<ndestroyed<<" ships destroyed: ";
     if (ncreated==ndestroyed) cout<<"no leak detected"<<endl;
     else cout<<"leak detected"<<endl;
+    delete boom;
 }
 
 void ShipManager::unregister_self() {
@@ -269,6 +272,7 @@ bool ShipManager::frame_entered(float t,float dt) {
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);
                 ndestroyed++;
+                boom->play_once();
                 continue;
             }
             (*i)->draw(dt);

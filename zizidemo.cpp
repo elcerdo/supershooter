@@ -14,7 +14,7 @@ public:
         cursor->cx=cursor->w/2;
         cursor->cy=cursor->h/2;
         cursor->z=3;
-        click=SoundManager::get()->get_sfx("lazer");
+        click=SoundManager::get()->get_sfx("click");
     }
     ~Spawner() { unregister_self(); delete cursor; delete click; }
 protected:
@@ -50,7 +50,7 @@ protected:
         cb->y=-16;
         cb->length=3;
 
-        click->play();
+        click->play_once();
         return true;
     }
     virtual bool frame_entered(float t,float dt) {

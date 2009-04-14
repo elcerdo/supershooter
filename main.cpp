@@ -16,7 +16,7 @@ using std::endl;
 
 class BigShip : public Ship, public Listener {
 public:
-    BigShip() : Ship(100,10000), shooting(false), reload(0), reload2(0) {
+    BigShip() : Ship(100,10000), shooting(false), reload1(0), reload2(0) {
         body=SpriteManager::get()->get_sprite("bigship01");
         Sprite *lburst=body->create_child("burst00");
         dynamic_cast<AnimatedSprite*>(lburst)->speed=24;
@@ -29,6 +29,13 @@ public:
         rburst->cx=-40;
         rburst->cy=9;
         body->angle=-M_PI/2.;
+
+        gun1=SoundManager::get()->get_sfx("lazer");
+        //gun2=SoundManager::get()->get_sfx("tatata");
+    }
+    virtual ~BigShip() {
+        delete gun1;
+        //delete gun2;
     }
 
     virtual bool move(float dt) {
@@ -36,15 +43,16 @@ public:
         //body->x+=dt*speed*cos(angle);
         //body->y+=dt*speed*sin(angle);
 
-        if (reload>0) reload-=dt;
+        if (reload1>0) reload1-=dt;
         if (reload2>0) reload2-=dt;
 
         if (shooting and reload2<=0) {
             reload2+=0.005;
             BulletManager::get()->shoot_from_sprite(body,0,2000,0,"bullet05",7)->sprite;
         }
-        if (shooting and reload<=0) {
-            reload+=0.1;
+        if (shooting and reload1<=0) {
+            gun1->play_once();
+            reload1+=0.1;
             ShipManager::get()->score+=7;
             dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,M_PI/180.*15.,600,0,"bullet00",5)->sprite)->speed=20.;
             dynamic_cast<AnimatedSprite*>(BulletManager::get()->shoot_from_sprite(body,M_PI/180.*25.,600,0,"bullet00",5)->sprite)->speed=20.;
@@ -68,11 +76,17 @@ protected:
     //}
 
     virtual bool mouse_down(int button, float x,float y) {
-        if (button==1) shooting=true;
+        if (button==1) {
+            //gun2->play_start();
+            shooting=true;
+        }
         return true;
     }
     virtual bool mouse_up(int button,float x,float y) {
-        if (button==1) shooting=false;
+        if (button==1) {
+            //gun2->play_stop();
+            shooting=false;
+        }
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -90,12 +104,15 @@ protected:
     }
 
     virtual void unregister_self() {
+        //gun2->play_stop();
         CollisionManager::get()->spaces[1].second.erase(this);
     }
 
     bool shooting;
-    float reload;
+    float reload1;
     float reload2;
+    Sfx *gun1;
+    //Sfx *gun2;
 };
     
 
@@ -124,14 +141,18 @@ public:
         main_menu->append_item("start");
         main_menu->append_item("fullscreen");
         main_menu->append_item("music");
+        main_menu->append_item("sfx");
         main_menu->append_item("quit");
 
         cursor=SpriteManager::get()->get_sprite("cursor");
         cursor->cx=cursor->w/2.;
         cursor->cy=cursor->h/2.;
         cursor->z=9.5;
+
+        click=SoundManager::get()->get_sfx("click");
     }
     ~MainMenu() {
+        delete click;
         delete cursor;
         delete main_menu;
 
@@ -154,8 +175,10 @@ protected:
     virtual bool mouse_down(int button, float x,float y) {
         if (button!=1) return true;
         main_menu->update(x,y);
+        if (state==IN_MENU) click->play_once();
         if (state==IN_MENU and main_menu->is_selected("quit")) { return false; }
         else if (state==IN_MENU and main_menu->is_selected("music")) { SoundManager::get()->toogle_musics(); }
+        else if (state==IN_MENU and main_menu->is_selected("sfx")) { SoundManager::get()->toogle_sfxs(); }
         else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toogle_fullscreen(); }
         else if (state==IN_MENU and main_menu->is_selected("start")) {
             state=GAME_START;
@@ -171,6 +194,7 @@ protected:
     }
     virtual bool key_down(SDLKey key) {
         if (key==SDLK_m) { SoundManager::get()->toogle_musics(); return true; }
+        if (key==SDLK_s) { SoundManager::get()->toogle_sfxs(); return true; }
 
         if (key==SDLK_ESCAPE and state==IN_MENU) {
             return false;
@@ -431,6 +455,7 @@ protected:
     };
     Menu *main_menu;
     Sprite *cursor;
+    Sfx *click;
 };
 
 

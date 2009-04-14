@@ -5,8 +5,10 @@
 #include <dirent.h>
 #include <vector>
 
-Sfx::Sfx(Mix_Chunk *chunk,const bool &play_sfxs,const std::string &name) : chunk(chunk), play_sfxs(play_sfxs), name(name) {}
-void Sfx::play() const { if (play_sfxs) Mix_PlayChannel(-1,chunk,0); }
+Sfx::Sfx(Mix_Chunk *chunk,const bool &play_sfxs,const std::string &name) : chunk(chunk), play_sfxs(play_sfxs), name(name), channel(-1) {}
+void Sfx::play_once() const { if (play_sfxs) Mix_PlayChannel(-1,chunk,0); }
+void Sfx::play_start() { if (play_sfxs and channel==-1) channel=Mix_PlayChannel(-1,chunk,-1); }
+void Sfx::play_stop() { if (channel!=-1) { channel=-1; Mix_HaltChannel(channel); } }
 
 //***********************************************************
 static SoundManager *mSoundManager=NULL;

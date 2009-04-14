@@ -4,6 +4,7 @@
 #include "engine.h"
 #include "sprite.h"
 #include "collision.h"
+#include "sound.h"
 #include "tinyxml/tinyxml.h"
 #include <vector>
 #include <set>
@@ -73,6 +74,7 @@ protected:
     Spaces spaces;
     typedef std::multimap<float,Sprite*> Explosions;
     Explosions explosions;
+    Sfx *boom;
 
     long int ncreated;
     long int ndestroyed;

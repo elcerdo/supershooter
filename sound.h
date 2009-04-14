@@ -9,12 +9,15 @@
 class Sfx {
 friend class SoundManager;
 public:
-    void play() const;
+    void play_once() const;
+    void play_start();
+    void play_stop();
 protected:
     Sfx(Mix_Chunk *chunk,const bool &play_sfxs,const std::string &name);
     Mix_Chunk *chunk;
     const bool &play_sfxs;
     std::string name;
+    int channel;
 };
 
 //***********************************************************
