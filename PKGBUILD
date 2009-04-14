@@ -2,9 +2,9 @@
 maintainer=elcerdo
 pkgname=supershooter
 pkgver=0.2.3
-pkgrel=1
+pkgrel=2
 pkgdesc="a shoot them up game with a lot of bullets"
-arch=(x686 x86_64)
+arch=(i686 x86_64)
 url="http://sd-12155.dedibox.fr:5001/SuperShooter"
 license=('GPL')
 depends=(sdl sdl_mixer sdl_image boost)
