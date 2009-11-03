@@ -1,8 +1,9 @@
-#include "shoot.h"
+#include "../supershooter/shoot.h"
 #include "except.h"
 #include "utils.h"
 #include <cmath>
 #include <iostream>
+using std::cerr;
 using std::cout;
 using std::endl;
 
@@ -60,13 +61,21 @@ protected:
 int main() {
     try {
         SdlManager::init();
+
+        std::string configfile;
         SpriteManager::init();
+        configfile="config.xml"; if (not SpriteManager::get()->load_directory("data")) {
+        configfile="../../config.xml"; if (not SpriteManager::get()->load_directory("../../data")) {
+            cerr<<"can't locate sprite data..."<<endl;
+            return 1;
+        }}
+        SpriteManager::get()->dump();
+
         CollisionManager::init();
         BulletManager::init();
-        ShipManager::init();
 
-        SpriteManager::get()->load_directory("data");
-        SpriteManager::get()->dump();
+        cout<<"using "<<configfile<<endl;
+        ShipManager::init(2,configfile);
 
         SdlManager::get()->register_listener(BulletManager::get());
         SdlManager::get()->register_listener(ShipManager::get());

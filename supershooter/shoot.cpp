@@ -218,7 +218,8 @@ ShipManager::ShipManager(size_t nspace,const std::string &configfile) : spaces(n
         wavenodes[id]=wave;
     }
 
-    boom=SoundManager::get()->get_sfx("boom");
+    boom=NULL;
+    if (SoundManager::get() != NULL) boom=SoundManager::get()->get_sfx("boom");
 }
 
 ShipManager::~ShipManager() {
@@ -272,7 +273,7 @@ bool ShipManager::frame_entered(float t,float dt) {
                 CollisionManager::get()->spaces[kspace].second.erase(*i);
                 ships->erase(i);
                 ndestroyed++;
-                boom->play_once();
+                if (boom != NULL) boom->play_once();
                 continue;
             }
             (*i)->draw(dt);
