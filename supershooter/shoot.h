@@ -5,7 +5,7 @@
 #include "sprite.h"
 #include "collision.h"
 #include "sound.h"
-#include "tinyxml/tinyxml.h"
+#include "tinyxml.h"
 #include <vector>
 #include <set>
 #include <stack>

@@ -7,6 +7,6 @@ find_package(SDL_mixer REQUIRED)
 find_package(OpenGL REQUIRED)
 
 add_definitions(-DTIXML_USE_STL)
-include_directories(zizi)
+include_directories(tinyxml zizi)
 subdirs(tinyxml zizi supershooter tests)
 
