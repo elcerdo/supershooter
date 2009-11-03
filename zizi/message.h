@@ -12,6 +12,7 @@ public:
     static void init(size_t nmessage=15,size_t nfade=5);
 
     void add_message(const std::string &message);
+    void set_display(bool disp);
 protected:
     MessageManager(size_t nmessage,size_t nfade);
     ~MessageManager();

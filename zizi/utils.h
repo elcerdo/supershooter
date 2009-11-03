@@ -8,6 +8,7 @@ class Fps : public Listener {
 public:
     Fps();
     ~Fps();
+    void set_display(bool disp);
 protected:
     virtual bool key_down(SDLKey key);
     virtual bool frame_entered(float t,float dt);

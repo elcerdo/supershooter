@@ -23,6 +23,10 @@ void MessageManager::add_message(const std::string &message) {
     texts.push_front(text);
 }
 
+void MessageManager::set_display(bool disp) {
+    display = disp;
+}
+
 bool MessageManager::key_down(SDLKey key) { if (key==SDLK_d) display=not display; return true; }
 
 bool MessageManager::frame_entered(float t,float dt) {

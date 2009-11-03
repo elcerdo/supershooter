@@ -22,6 +22,10 @@ bool Fps::key_down(SDLKey key) {
     return true;
 }
 
+void Fps::set_display(bool disp) {
+    display = disp;
+}
+
 bool Fps::frame_entered(float t,float dt) {
     if (display) text->draw(dt);
     frame++;
