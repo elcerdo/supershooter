@@ -469,6 +469,7 @@ int main() {
         SoundManager::init();
         if (not SoundManager::get()->load_directory("data"))
         if (not SoundManager::get()->load_directory("../data"))
+        if (not SoundManager::get()->load_directory("../../data"))
         if (not SoundManager::get()->load_directory("/usr/share/supershooter/data"))
         if (not SoundManager::get()->load_directory("/usr/local/share/supershooter/data")) {
             cerr<<"can't locate sound data..."<<endl;
