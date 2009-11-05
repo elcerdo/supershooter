@@ -6,6 +6,7 @@
 #include <cmath>
 #include <list>
 #include <cassert>
+#include <SDL/SDL_image.h>
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -34,6 +35,43 @@ struct OuterBox: public Area {
     virtual float get_top() const { return -100000; }
     virtual bool  collide_with(const Point* p) const { return p->get_x()<0 or p->get_x()>w or p->get_y()>h; }
 protected:
+    float w,h;
+};
+
+struct Buildings: public Area {
+    Buildings() : w(SdlManager::get()->width), h(SdlManager::get()->height) {
+        map = SpriteManager::get()->get_sprite("map");
+        map->factorx=w/map->w;
+        map->factory=h/map->h;
+        map->x=SdlManager::get()->width/2;
+        map->y=SdlManager::get()->height/2;
+        map->z=2;
+        surf=IMG_Load("../data/map.png");
+        printf("bbb %d %d %d\n",surf->w,surf->h,surf->format->BitsPerPixel);
+        pixels = static_cast<uint8_t*>(surf->pixels);
+    }
+    virtual ~Buildings() {
+        delete map;
+    }
+
+    //FIXME ugly
+    bool is_inside(float x,float y) const {
+        int i=x/map->factorx-1;
+        int j=y/map->factory;
+        uint8_t *pixel=&pixels[4*(j*surf->w+i)];
+        return pixel[4]!=255;
+    }
+    virtual float get_x() const { assert(false); return 0; }
+    virtual float get_y() const { assert(false); return 0; }
+    virtual float get_left() const { return 0; }
+    virtual float get_right() const { return w; }
+    virtual float get_bottom() const { return h; }
+    virtual float get_top() const { return 0; }
+    virtual bool  collide_with(const Point* p) const { return is_inside(p->get_x(),p->get_y()); }
+    Sprite *map;
+protected:
+    SDL_Surface *surf;
+    uint8_t *pixels;
     float w,h;
 };
 
@@ -83,6 +121,9 @@ public:
         reload=0;
 
         space.second.insert(new OuterBox);
+        buildings = new Buildings;
+        space.second.insert(buildings);
+
     }
     ~Spawner() {
         unregister_self();
@@ -117,6 +158,7 @@ protected:
     virtual bool frame_entered(float t,float dt) {
         SdlManager::get()->get_mouse_position(cross->x,cross->y);
         cross->draw(dt);
+        buildings->map->draw(dt);
 
         float dx=0;
         float dy=0;
@@ -209,6 +251,8 @@ protected:
     float reload;
     bool shooting;
     CollisionManager::Space &space;
+    Sprite *map;
+    Buildings *buildings;
 };
 
 int main() {
