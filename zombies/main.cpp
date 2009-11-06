@@ -40,26 +40,52 @@ protected:
 
 struct Buildings: public Area {
     Buildings() : w(SdlManager::get()->width), h(SdlManager::get()->height) {
-        map = SpriteManager::get()->get_sprite("map");
-        map->factorx=w/map->w;
-        map->factory=h/map->h;
-        map->x=SdlManager::get()->width/2;
-        map->y=SdlManager::get()->height/2;
-        map->z=2;
+        map_ground = SpriteManager::get()->get_sprite("map_ground");
+        map_ground->factorx=w/map_ground->w;
+        map_ground->factory=h/map_ground->h;
+        map_ground->x=SdlManager::get()->width/2;
+        map_ground->y=SdlManager::get()->height/2;
+        map_ground->z=-1;
         surf=IMG_Load("../data/map.png");
         printf("bbb %d %d %d\n",surf->w,surf->h,surf->format->BitsPerPixel);
         pixels = static_cast<uint8_t*>(surf->pixels);
     }
     virtual ~Buildings() {
-        delete map;
+        delete map_ground;
+        SDL_FreeSurface(surf);
     }
 
-    //FIXME ugly
+    void draw(float dt) {
+        map_ground->draw(dt);
+    }
+    bool avoid_walls(float &x,float &y,float dx,float dy,float size) const {
+        //bool xx = not is_inside(x+dx,y);
+        //bool yy = not is_inside(x,y+dy);
+        //bool xy = not is_inside(x+dx,y+dy);
+        //if (xy) { x += dx; y += dy; }
+        //else if (xx) { x += dx; }
+        //else if (yy) { y += dy; }
+        bool luxy = not is_inside(x+dx-size,y+dy-size);
+        bool lbxy = not is_inside(x+dx-size,y+dy+size);
+        bool ruxy = not is_inside(x+dx+size,y+dy-size);
+        bool rbxy = not is_inside(x+dx+size,y+dy+size);
+        bool luxx = not is_inside(x+dx-size,y-size);
+        bool lbxx = not is_inside(x+dx-size,y+size);
+        bool ruxx = not is_inside(x+dx+size,y-size);
+        bool rbxx = not is_inside(x+dx+size,y+size);
+        bool luyy = not is_inside(x-size,y+dy-size);
+        bool lbyy = not is_inside(x-size,y+dy+size);
+        bool ruyy = not is_inside(x+size,y+dy-size);
+        bool rbyy = not is_inside(x+size,y+dy+size);
+        if (((dx<0 and luxy and lbxy) or (dx>0 and ruxy and rbxy)) and ((dy<0 and luxy and ruxy) or (dy>0 and lbxy and rbxy))) { y += dy; x += dx; }
+        else if ((dx<0 and luxx and lbxx) or (dx>0 and ruxx and rbxx)) { x += dx; }
+        else if ((dy<0 and luyy and lbyy) or (dy>0 and ruyy and rbyy)) { y += dy; }
+    }
     bool is_inside(float x,float y) const {
-        int i=x/map->factorx-1;
-        int j=y/map->factory;
+        int i=x*surf->w/w;
+        int j=y*surf->h/h;
         uint8_t *pixel=&pixels[4*(j*surf->w+i)];
-        return pixel[4]!=255;
+        return pixel[3]!=0;
     }
     virtual float get_x() const { assert(false); return 0; }
     virtual float get_y() const { assert(false); return 0; }
@@ -68,8 +94,9 @@ struct Buildings: public Area {
     virtual float get_bottom() const { return h; }
     virtual float get_top() const { return 0; }
     virtual bool  collide_with(const Point* p) const { return is_inside(p->get_x(),p->get_y()); }
-    Sprite *map;
 protected:
+    Sprite *map_upper;
+    Sprite *map_ground;
     SDL_Surface *surf;
     uint8_t *pixels;
     float w,h;
@@ -158,7 +185,7 @@ protected:
     virtual bool frame_entered(float t,float dt) {
         SdlManager::get()->get_mouse_position(cross->x,cross->y);
         cross->draw(dt);
-        buildings->map->draw(dt);
+        buildings->draw(dt);
 
         float dx=0;
         float dy=0;
@@ -167,8 +194,7 @@ protected:
         if (keys[SDLK_UP]    or keys[SDLK_w]) dy-=GUY_SPEED;
         if (keys[SDLK_RIGHT] or keys[SDLK_d]) dx=GUY_SPEED;
         if (keys[SDLK_LEFT]  or keys[SDLK_a]) dx=-GUY_SPEED;
-        guy->x += dx*dt;
-        guy->y += dy*dt;
+        buildings->avoid_walls(guy->x,guy->y,dx*dt,dy*dt,16);
         if (guy->x < 0) guy->x=0;
         if (guy->x > SdlManager::get()->width) guy->x=SdlManager::get()->width;
         if (guy->y < 0) guy->y=0;
