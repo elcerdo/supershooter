@@ -1,11 +1,13 @@
 #include "except.h"
 #include "collision.h"
 #include "utils.h"
+//#include "png.h"
 #include "message.h"
 #include "sound.h"
 #include <cmath>
 #include <list>
 #include <cassert>
+#include <queue>
 #include <SDL/SDL_image.h>
 using std::cerr;
 using std::cout;
@@ -38,6 +40,39 @@ protected:
     float w,h;
 };
 
+
+#define ELEM_NEVER_WALKED -2
+#define ELEM_IN_QUEUE     -1
+
+struct Elem {
+    Elem(int i,int j,float d,const SDL_Surface *surf,float *distance) : i(i), j(j), d(d), surf(surf), distance(distance) {
+        assert(not (i<0 or i>=surf->w or j<0 or j>=surf->h));
+        assert(distance[j*surf->w+i] == ELEM_NEVER_WALKED);
+        distance[j*surf->w+i] = ELEM_IN_QUEUE;
+    }
+    ~Elem() {
+        //printf("----- %d %d %f\n",this->i,this->j,this->d);
+        distance[j*surf->w+i] = d;
+    }
+    Elem *get_neighbor(int di,int dj) const {
+        if (i+di<0 or i+di>=surf->w or j+dj<0 or j+dj>=surf->h) return NULL; //invalid coords
+        if (distance[(j+dj)*surf->w+(i+di)] != ELEM_NEVER_WALKED) return NULL; //already in queue or updated
+        if (static_cast<const uint8_t*>(surf->pixels)[4*((j+dj)*surf->w+(i+di))+3] != 0) return NULL; //inside walls
+
+        return new Elem(i+di,j+dj,d+sqrt(di*di+dj*dj),surf,distance);
+    }
+    int i,j;
+    float d;
+    const SDL_Surface *surf;
+    float *distance;
+};
+
+struct ElemCompare {
+    bool operator()(const Elem* a,const Elem *b) { return a->d > b->d; }
+};
+
+typedef std::priority_queue<Elem*,std::vector<Elem*>,ElemCompare> ElemQueue;
+
 struct Buildings: public Area {
     Buildings() : w(SdlManager::get()->width), h(SdlManager::get()->height) {
         map_ground = SpriteManager::get()->get_sprite("map_ground");
@@ -50,23 +85,79 @@ struct Buildings: public Area {
         surf_bullet=IMG_Load("../data/map_bullet.png");
         assert(surf_wall);
         assert(surf_bullet);
+        distance = new float[surf_wall->w*surf_wall->h];
     }
     virtual ~Buildings() {
         delete map_ground;
+        delete [] distance;
         SDL_FreeSurface(surf_bullet);
         SDL_FreeSurface(surf_wall);
+    }
+
+    void update_distance(float x,float y) {
+        for (int k=0; k<surf_wall->w*surf_wall->h; k++) { distance[k] = ELEM_NEVER_WALKED; }
+
+        //int k=0;
+        ElemQueue queue;
+        queue.push(new Elem(x*surf_wall->w/w,y*surf_wall->h/h,0,surf_wall,distance));
+        while (not queue.empty()) {
+            Elem *neighbor = NULL;
+            Elem *current = queue.top();
+            queue.pop();
+            neighbor = current->get_neighbor(-1,0);  if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(1,0);   if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(0,-1);  if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(0,1);   if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(-1,1);  if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(-1,-1); if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(1,1);   if (neighbor) queue.push(neighbor);
+            neighbor = current->get_neighbor(1,-1);  if (neighbor) queue.push(neighbor);
+            delete current;
+            //char filename[256];
+            //if (k%50 == 0) {
+            //    sprintf(filename,"distance%03d.png",k/50);
+            //    write_frame_float_scale(filename,distance,surf_wall->h,surf_wall->w,128,0);
+            //}
+            //k++;
+        }
+
+    }
+
+    void get_gradient(float x,float y,float &dx,float &dy) const {
+        assert(not is_inside(x,y,surf_wall));
+        int i=x*surf_wall->w/w;
+        int j=y*surf_wall->h/h;
+
+        int kdx=0;
+        int kdy=0;
+        dx=0;
+        dy=0;
+        if (i>0 and distance[j*surf_wall->w+i-1] != ELEM_NEVER_WALKED) { kdx++; dx-=distance[j*surf_wall->w+i]-distance[j*surf_wall->w+i-1]; }
+        if (i<w-1 and distance[j*surf_wall->w+i+1] != ELEM_NEVER_WALKED) { kdx++; dx-=distance[j*surf_wall->w+i+1]-distance[j*surf_wall->w+i]; }
+        if (j>0 and distance[(j-1)*surf_wall->w+i] != ELEM_NEVER_WALKED) { kdy++; dy-=distance[j*surf_wall->w+i]-distance[(j-1)*surf_wall->w+i]; }
+        if (j<h-1 and distance[(j+1)*surf_wall->w+i] != ELEM_NEVER_WALKED) { kdy++; dy-=distance[(j+1)*surf_wall->w+i]-distance[j*surf_wall->w+i]; }
+        assert(kdx !=0);
+        assert(kdy !=0);
+        dx /= kdx;
+        dy /= kdy;
     }
 
     void draw(float dt) {
         map_ground->draw(dt);
     }
-    bool avoid_walls(float &x,float &y,float dx,float dy,float size) const {
+    bool avoid_walls(float &x,float &y,float &dx,float &dy) const {
+        assert(not is_inside(x,y,surf_wall));
         bool xx = not is_inside(x+dx,y,surf_wall);
         bool yy = not is_inside(x,y+dy,surf_wall);
         bool xy = not is_inside(x+dx,y+dy,surf_wall);
         if (xy) { x += dx; y += dy; }
-        else if (xx) { x += dx; }
-        else if (yy) { y += dy; }
+        else if (xx) { x += dx; dy = 0; }
+        else if (yy) { y += dy; dx = 0; }
+
+        if (x < 0) { x=0; dx=0; }
+        if (x >= w) { x=w-1; dx=0; }
+        if (y < 0) { y=0; dy=0; }
+        if (y >= h) { y=h-1; dy=0; }
 
         //bool luxy = not is_inside(x+dx-size,y+dy-size);
         //bool lbxy = not is_inside(x+dx-size,y+dy+size);
@@ -106,6 +197,7 @@ protected:
     Sprite *map_ground;
     SDL_Surface *surf_bullet;
     SDL_Surface *surf_wall;
+    float *distance;
     float w,h;
 };
 
@@ -117,12 +209,17 @@ public:
         sprite->y = y;
         target = guy;
     }
-    void update(float dt) {
-        float dx = target->x - sprite->x;
-        float dy = target->y - sprite->y;
-        float norm = sqrt(dx*dx+dy*dy);
-        sprite->x += dt*ZOMBIE_SPEED*dx/norm;
-        sprite->y += dt*ZOMBIE_SPEED*dy/norm;
+    void update(float dt,const Buildings *buildings) {
+        float dx;
+        float dy;
+        buildings->get_gradient(sprite->x,sprite->y,dx,dy);
+        float norm;
+        norm = sqrt(dx*dx+dy*dy);
+        if (norm != 0) {
+            dx *= dt*ZOMBIE_SPEED/norm;
+            dy *= dt*ZOMBIE_SPEED/norm;
+            buildings->avoid_walls(sprite->x,sprite->y,dx,dy);
+        }
         sprite->angle = atan2(dy,dx);
         sprite->draw(dt);
     }
@@ -203,13 +300,12 @@ protected:
         if (keys[SDLK_UP]    or keys[SDLK_w]) dy-=GUY_SPEED;
         if (keys[SDLK_RIGHT] or keys[SDLK_d]) dx=GUY_SPEED;
         if (keys[SDLK_LEFT]  or keys[SDLK_a]) dx=-GUY_SPEED;
-        buildings->avoid_walls(guy->x,guy->y,dx*dt,dy*dt,16);
-        if (guy->x < 0) guy->x=0;
-        if (guy->x > SdlManager::get()->width) guy->x=SdlManager::get()->width;
-        if (guy->y < 0) guy->y=0;
-        if (guy->y > SdlManager::get()->height) guy->y=SdlManager::get()->height;
+        dx *= dt;
+        dy *= dt;
+        buildings->avoid_walls(guy->x,guy->y,dx,dy);
         guy->angle=atan2(cross->y-guy->y,cross->x-guy->x);
         guy->draw(dt);
+        buildings->update_distance(guy->x,guy->y);
 
         if (shooting and reload<=0) {
             space.first.insert(new Bullet(guy));
@@ -239,7 +335,7 @@ protected:
             //cout<<" count="<<aaaa<<endl;
             Zombie *zombie = dynamic_cast<Zombie*>(*i);
             if (zombie) {
-                if (zombie->colliding.empty()) zombie->update(dt);
+                if (zombie->colliding.empty()) zombie->update(dt,buildings);
                 else {
                     CollisionManager::Areas::iterator ii=i;
                     zombie_garbage.insert(zombie);
