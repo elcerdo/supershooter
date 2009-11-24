@@ -8,9 +8,10 @@ using std::cout;
 using std::endl;
 
 #define NCOLORS 6
+#define MAGNIFYFACTOR 1.2
 
 struct Pixel {
-    Pixel(float x,float y,unsigned int state) : left(NULL), right(NULL), top(NULL), bottom(NULL) {
+    Pixel(float x,float y,unsigned int state) : magnified(false), left(NULL), right(NULL), top(NULL), bottom(NULL) {
         sprite = dynamic_cast<StateSprite*>(SpriteManager::get()->get_sprite("blocks"));
         assert(sprite);
         sprite->x = x;
@@ -21,6 +22,19 @@ struct Pixel {
     ~Pixel() {
         delete sprite;
     }
+    void draw(float dt) {
+        if (magnified) {
+            sprite->factorx *= MAGNIFYFACTOR;
+            sprite->factory *= MAGNIFYFACTOR;
+        }
+        sprite->draw(dt);
+        if (magnified) {
+            sprite->factorx /= MAGNIFYFACTOR;
+            sprite->factory /= MAGNIFYFACTOR;
+        }
+    }
+
+    bool magnified;
     Pixel *left;
     Pixel *right;
     Pixel *top;
@@ -49,6 +63,8 @@ public:
             if (j != 0)    current->left   = get_pixel(i,j-1);
             if (j != nw-1) current->right  = get_pixel(i,j+1);
         }
+        get_pixel(nh-1,0)->sprite->state = 18;
+        get_pixel(0,nw-1)->sprite->state = 19;
         //for (int k=0; k<size; k++) {
         //    Pixel *current = pixels[k];
         //    int n = 0;
@@ -99,9 +115,9 @@ protected:
         cursor->draw(dt);
 
         Pixel *hoovered = get_hoovered_pixel(cursor->x,cursor->y);
-        if (hoovered) { hoovered->sprite->factorx = 1.3; hoovered->sprite->factory = 1.3; }
-        for (int k=0; k<size; k++) { pixels[k]->sprite->draw(dt); }
-        if (hoovered) { hoovered->sprite->factorx = 1.;  hoovered->sprite->factory = 1.; }
+        if (hoovered) hoovered->magnified = true;
+        for (int k=0; k<size; k++) { pixels[k]->draw(dt); }
+        if (hoovered) hoovered->magnified = false;
         return true;
     }
     virtual void unregister_self() {
