@@ -8,5 +8,5 @@ find_package(OpenGL REQUIRED)
 
 add_definitions(-DTIXML_USE_STL)
 include_directories(tinyxml zizi)
-subdirs(tinyxml zizi tests supershooter zombies)
+subdirs(tinyxml zizi tests supershooter zombies blocks)
 
