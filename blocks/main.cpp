@@ -13,6 +13,7 @@ using std::make_pair;
 #define NCOLORS 6
 #define MAGNIFYFACTOR 1.2
 #define DEBUGMSG(format, ...) printf(format,##__VA_ARGS__)
+#define SCORESEPARATION 40
 
 struct Pixel {
     Pixel(float x,float y,unsigned int state) : magnified(false), playable(false), inqueue(false), left(NULL), right(NULL), top(NULL), bottom(NULL) {
@@ -63,15 +64,19 @@ public:
         cursor = SpriteManager::get()->get_sprite("cursor");
         cursor->cx = cursor->w/2.;
         cursor->cy = cursor->h/2.;
-        cursor->z = 2.;
+        cursor->z = 8;
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
-        p1score->x = SdlManager::get()->width/2.-30;
+        p1score->x = SdlManager::get()->width/2.-SCORESEPARATION;
         p1score->y = SdlManager::get()->height-100;
 
         p2score = SpriteManager::get()->get_text("0","font00",Text::LEFT);
-        p2score->x = SdlManager::get()->width/2.+30;
+        p2score->x = SdlManager::get()->width/2.+SCORESEPARATION;
         p2score->y = SdlManager::get()->height-100;
+
+        status = SpriteManager::get()->get_text("status","font00",Text::CENTER);
+        status->x = SdlManager::get()->width/2.;
+        status->y = 100;
 
         pixels = new Pixel*[size];
         const float cx = (SdlManager::get()->width-spacing*(nw-1))/2.;
@@ -103,6 +108,7 @@ public:
         last_played = -1;
         update_representation();
         MessageManager::get()->add_message("p1 starts");
+        status->update("p1 starts");
     }
     ~MainApp() {
         unregister_self();
@@ -111,6 +117,7 @@ public:
         delete cursor;
         delete p1score;
         delete p2score;
+        delete status;
     }
 protected:
     Pixel*& get_pixel(int i,int j) { return pixels[i*nw+j]; }
@@ -144,11 +151,13 @@ protected:
             case P1PLAYING:
                 DEBUGMSG("player 1 locked. player 2 win.\n");
                 MessageManager::get()->add_message("p2 wins");
+                status->update("p2 wins");
                 state = P1LOCKED;
                 break;
             case P2PLAYING:
                 DEBUGMSG("player 2 locked. player 1 win.\n");
                 MessageManager::get()->add_message("p1 wins");
+                status->update("p1 wins");
                 state = P2LOCKED;
                 break;
             default:
@@ -211,10 +220,12 @@ protected:
         switch (state) {
         case P1PLAYING:
             MessageManager::get()->add_message("p2 plays");
+            status->update("p2");
             state = P2PLAYING;
             break;
         case P2PLAYING:
             MessageManager::get()->add_message("p1 plays");
+            status->update("p1");
             state = P1PLAYING;
             break;
         default:
@@ -227,19 +238,18 @@ protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_ESCAPE:
-            return false; break;
+            return false;
+            break;
         default:
-            return true; break;
+            break;
         }
+        return true;
     }
     virtual bool mouse_down(int button,float x,float y) {
         if (button == 1) {
             Pixel *current = get_hoovered_pixel(x,y);
             if (current and current->playable) { play_move(current); }
         }
-        return true;
-    }
-    virtual bool mouse_up(int button,float x,float y) {
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
@@ -253,6 +263,7 @@ protected:
 
         p1score->draw(dt);
         p2score->draw(dt);
+        status->draw(dt);
 
         return true;
     }
@@ -273,6 +284,7 @@ protected:
     PixelsSet p2pixels;
     Text *p1score;
     Text *p2score;
+    Text *status;
 };
 
 int main() {

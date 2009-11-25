@@ -55,7 +55,7 @@ void Sprite::draw(float dt) const {
 }
 
 void Sprite::dump(std::ostream &os,const std::string &indent) const {
-    os<<indent<<name<<" ["<<x<<","<<y<<"] static"<<std::endl;
+    os<<indent<<name<<" ["<<x<<","<<y<<","<<cx<<","<<cy<<"] static"<<std::endl;
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
@@ -82,7 +82,7 @@ void StateSprite::draw(float dt) const {
 }
 
 void StateSprite::dump(std::ostream &os,const std::string &indent) const {
-    os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<" state"<<std::endl;
+    os<<indent<<name<<" ["<<x<<","<<y<<","<<cx<<","<<cy<<"]@"<<state<<" state"<<std::endl;
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
@@ -118,21 +118,21 @@ void AnimatedSprite::draw(float dt) const {
 }
 
 void AnimatedSprite::dump(std::ostream &os,const std::string &indent) const {
-    os<<indent<<name<<" ["<<x<<","<<y<<"]@"<<state<<","<<pos<<" animated"<<std::endl;
+    os<<indent<<name<<" ["<<x<<","<<y<<","<<cx<<","<<cy<<"]@"<<state<<","<<pos<<" animated"<<std::endl;
 }
 
 Text::Text(unsigned int id,float w,float h,const std::string &name,const std::string &str,const CharMap &mapping,Align align) : Sprite(id,w,h,name), mapping(mapping), align(align) {
-    float x=0;
+    float tx=0;
     for (std::string::const_iterator istr=str.begin(); istr!=str.end(); istr++) {
         CharMap::const_iterator istate=mapping.find(*istr);
         if (istate==mapping.end()) throw Except(Except::SS_SPRITE_MAPPING_ERR,str);
 
         StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
         current->state=istate->second;
-        current->x=x;
+        current->x=tx;
         current->z=5.;
         current->alpha=alpha;
-        x+=current->w-2.;
+        tx+=current->w-2.;
     }
 
     update_align();
@@ -149,21 +149,11 @@ void Text::draw(float dt) const {
 }
 
 void Text::dump(std::ostream &os,const std::string &indent) const {
-    os<<indent<<name<<" ["<<x<<","<<y<<"]"<<" text"<<std::endl;
+    os<<indent<<name<<" ["<<x<<","<<y<<","<<cx<<","<<cy<<"]"<<" text"<<std::endl;
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->dump(os,indent+"--");
 }
 
 void Text::update_align() {
-    switch (align) {
-    case RIGHT:
-        cx=(w-2.)*(1.-children.size()); break;
-    case CENTER:
-        cx=(w-2.)*(1.-children.size())/2.; break;
-    case LEFT:
-    default:
-        break;
-    }
-
     if (not children.empty()) {
         const_cast<float&>(w)=factorx*((*children.begin())->w-2.)*(children.size()-1.);
         const_cast<float&>(h)=(*children.begin())->h;
@@ -171,6 +161,19 @@ void Text::update_align() {
         const_cast<float&>(w)=0;
         const_cast<float&>(h)=0;
     }
+
+    switch (align) {
+    case RIGHT:
+        this->cx=-w;
+        break;
+    case CENTER:
+        this->cx=-w/2.;
+        break;
+    case LEFT:
+    default:
+        break;
+    }
+
 }
 
 void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
