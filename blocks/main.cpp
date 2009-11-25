@@ -66,6 +66,10 @@ public:
         cursor->cy = cursor->h/2.;
         cursor->z = 8;
 
+        click = SoundManager::get()->get_sfx("click");
+
+        endsfx = SoundManager::get()->get_sfx("boom");
+
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
         p1score->x = SdlManager::get()->width/2.-SCORESEPARATION;
         p1score->y = SdlManager::get()->height-100;
@@ -106,7 +110,7 @@ public:
 
         state = P1PLAYING;
         last_played = -1;
-        update_representation();
+        update_playable();
         MessageManager::get()->add_message("p1 starts");
         status->update("p1 starts");
     }
@@ -118,6 +122,8 @@ public:
         delete p1score;
         delete p2score;
         delete status;
+        delete click;
+        delete endsfx;
     }
 protected:
     Pixel*& get_pixel(int i,int j) { return pixels[i*nw+j]; }
@@ -127,7 +133,7 @@ protected:
         if (ci>=0 and cj>=0 and cj<nw and ci<nh) { return get_pixel(ci,cj); }
         else { return NULL; }
     }
-    void update_representation() {
+    bool update_playable() {
         assert(state==P1PLAYING or state==P2PLAYING);
 
         for (int k=0; k<size; k++) { pixels[k]->playable = false; }
@@ -142,36 +148,10 @@ protected:
             if (current->right and current->right->sprite->state<6 and current->right->sprite->state!=last_played)    current->right->playable  = true;
         }
 
-        //look for end of game
-        //FIXME if both are stuck then compute winner based on score
+        //update locked
         int n=0;
         for (int k=0; k<size; k++) if (pixels[k]->playable) { n++; }
-        if (n==0) {
-            switch (state) {
-            case P1PLAYING:
-                DEBUGMSG("player 1 locked. player 2 win.\n");
-                MessageManager::get()->add_message("p2 wins");
-                status->update("p2 wins");
-                state = P1LOCKED;
-                break;
-            case P2PLAYING:
-                DEBUGMSG("player 2 locked. player 1 win.\n");
-                MessageManager::get()->add_message("p1 wins");
-                status->update("p1 wins");
-                state = P2LOCKED;
-                break;
-            default:
-                break;
-            }
-        }
-
-        { //update score display
-            char foo[10];
-            snprintf(foo,10,"%d",p1pixels.size());
-            p1score->update(foo);
-            snprintf(foo,10,"%d",p2pixels.size());
-            p2score->update(foo);
-        }
+        return (n==0);
     }
     void play_move(Pixel *playpixel) {
         if (state!=P1PLAYING and state!=P2PLAYING) {
@@ -216,23 +196,58 @@ protected:
             (*i)->sprite->state = last_played+offset;
         }
 
-        //switch players
-        switch (state) {
-        case P1PLAYING:
-            MessageManager::get()->add_message("p2 plays");
-            status->update("p2");
-            state = P2PLAYING;
-            break;
-        case P2PLAYING:
-            MessageManager::get()->add_message("p1 plays");
-            status->update("p1");
-            state = P1PLAYING;
-            break;
-        default:
-            break;
+        { //update score display
+            char foo[10];
+            snprintf(foo,10,"%d",p1pixels.size());
+            p1score->update(foo);
+            snprintf(foo,10,"%d",p2pixels.size());
+            p2score->update(foo);
         }
 
-        update_representation();
+        //switch players and look for end of game
+        if (state == P1PLAYING) { //player 1 ends its turn
+            state = P2PLAYING;
+            const bool p2locked = update_playable();
+            if (p2locked) {
+                MessageManager::get()->add_message("p1 win");
+                status->update("p1 win");
+                state = P1WIN;
+                endsfx->play_once();
+            } else {
+                MessageManager::get()->add_message("p2 plays");
+                status->update("p2");
+            }
+        } else { //player 2 ends its turn
+            const bool p2locked = update_playable();
+            state = P1PLAYING;
+            const bool p1locked = update_playable();
+            if (p1locked and p2locked) {
+                const int p1score = p1pixels.size();
+                const int p2score = p2pixels.size();
+                if (p1score > p2score) {
+                    MessageManager::get()->add_message("p1 score win");
+                    status->update("p1 score win");
+                    state = P1WIN;
+                } else if (p1score == p2score) {
+                    MessageManager::get()->add_message("draw");
+                    status->update("draw");
+                    state = DRAW;
+                } else {
+                    MessageManager::get()->add_message("p2 score win");
+                    status->update("p2 score win");
+                    state = P2WIN;
+                }
+                endsfx->play_once();
+            } else if (p1locked and not p2locked) {
+                MessageManager::get()->add_message("p2 win");
+                status->update("p2 win");
+                state = P2WIN;
+                endsfx->play_once();
+            } else {
+                MessageManager::get()->add_message("p1 plays");
+                status->update("p1");
+            }
+        }
     }
 
     virtual bool key_down(SDLKey key) {
@@ -248,7 +263,10 @@ protected:
     virtual bool mouse_down(int button,float x,float y) {
         if (button == 1) {
             Pixel *current = get_hoovered_pixel(x,y);
-            if (current and current->playable) { play_move(current); }
+            if (current and current->playable) {
+                click->play_once();
+                play_move(current);
+            }
         }
         return true;
     }
@@ -274,7 +292,7 @@ protected:
     const int size;
     const float spacing;
 
-    enum State { P1PLAYING, P2PLAYING, P1LOCKED, P2LOCKED };
+    enum State { P1PLAYING, P2PLAYING, P1WIN, P2WIN, DRAW };
     State state;
     int last_played;
 
@@ -285,10 +303,14 @@ protected:
     Text *p1score;
     Text *p2score;
     Text *status;
+    Sfx *click;
+    Sfx *endsfx;
 };
 
 int main() {
     try {
+        srand(time(NULL));
+
         SdlManager::init();
         SdlManager::get()->set_background_color(0,0,0);
 
