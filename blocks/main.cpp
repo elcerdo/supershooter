@@ -60,10 +60,18 @@ typedef std::priority_queue<Seed,std::vector<Seed>,SeedGreater> SeedsQueue;
 class MainApp : public Listener {
 public:
     MainApp() : nw(21), nh(14), size(nw*nh), spacing(35) { 
-        cursor=SpriteManager::get()->get_sprite("cursor");
-        cursor->cx=cursor->w/2.;
-        cursor->cy=cursor->h/2.;
-        cursor->z=2.;
+        cursor = SpriteManager::get()->get_sprite("cursor");
+        cursor->cx = cursor->w/2.;
+        cursor->cy = cursor->h/2.;
+        cursor->z = 2.;
+
+        p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
+        p1score->x = SdlManager::get()->width/2.-30;
+        p1score->y = SdlManager::get()->height-100;
+
+        p2score = SpriteManager::get()->get_text("0","font00",Text::LEFT);
+        p2score->x = SdlManager::get()->width/2.+30;
+        p2score->y = SdlManager::get()->height-100;
 
         pixels = new Pixel*[size];
         const float cx = (SdlManager::get()->width-spacing*(nw-1))/2.;
@@ -101,6 +109,8 @@ public:
         for (int k=0; k<size; k++) { delete pixels[k]; }
         delete pixels;
         delete cursor;
+        delete p1score;
+        delete p2score;
     }
 protected:
     Pixel*& get_pixel(int i,int j) { return pixels[i*nw+j]; }
@@ -126,6 +136,7 @@ protected:
         }
 
         //look for end of game
+        //FIXME if both are stuck then compute winner based on score
         int n=0;
         for (int k=0; k<size; k++) if (pixels[k]->playable) { n++; }
         if (n==0) {
@@ -145,6 +156,13 @@ protected:
             }
         }
 
+        { //update score display
+            char foo[10];
+            snprintf(foo,10,"%d",p1pixels.size());
+            p1score->update(foo);
+            snprintf(foo,10,"%d",p2pixels.size());
+            p2score->update(foo);
+        }
     }
     void play_move(Pixel *playpixel) {
         if (state!=P1PLAYING and state!=P2PLAYING) {
@@ -232,6 +250,10 @@ protected:
         if (hoovered and hoovered->playable) hoovered->magnified = true;
         for (int k=0; k<size; k++) { pixels[k]->draw(dt); }
         if (hoovered and hoovered->playable) hoovered->magnified = false;
+
+        p1score->draw(dt);
+        p2score->draw(dt);
+
         return true;
     }
     virtual void unregister_self() {
@@ -249,6 +271,8 @@ protected:
     Sprite *cursor;
     PixelsSet p1pixels;
     PixelsSet p2pixels;
+    Text *p1score;
+    Text *p2score;
 };
 
 int main() {
