@@ -3,15 +3,19 @@
 #include "message.h"
 #include "sound.h"
 #include <cassert>
+#include <set>
+#include <queue>
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::make_pair;
 
 #define NCOLORS 6
 #define MAGNIFYFACTOR 1.2
+#define DEBUGMSG(format, ...) printf(format,##__VA_ARGS__)
 
 struct Pixel {
-    Pixel(float x,float y,unsigned int state) : magnified(false), left(NULL), right(NULL), top(NULL), bottom(NULL) {
+    Pixel(float x,float y,unsigned int state) : magnified(false), playable(false), inqueue(false), left(NULL), right(NULL), top(NULL), bottom(NULL) {
         sprite = dynamic_cast<StateSprite*>(SpriteManager::get()->get_sprite("blocks"));
         assert(sprite);
         sprite->x = x;
@@ -35,12 +39,23 @@ struct Pixel {
     }
 
     bool magnified;
+    bool playable;
+    bool inqueue;
     Pixel *left;
     Pixel *right;
     Pixel *top;
     Pixel *bottom;
     StateSprite *sprite;
 };
+
+typedef std::set<Pixel*> PixelsSet;
+typedef std::pair<int,Pixel*> Seed;
+
+struct SeedGreater {
+    bool operator()(const Seed &a, const Seed &b) { return a.first > b.first; }
+};
+
+typedef std::priority_queue<Seed,std::vector<Seed>,SeedGreater> SeedsQueue;
 
 class MainApp : public Listener {
 public:
@@ -63,17 +78,23 @@ public:
             if (j != 0)    current->left   = get_pixel(i,j-1);
             if (j != nw-1) current->right  = get_pixel(i,j+1);
         }
-        get_pixel(nh-1,0)->sprite->state = 18;
-        get_pixel(0,nw-1)->sprite->state = 19;
-        //for (int k=0; k<size; k++) {
-        //    Pixel *current = pixels[k];
-        //    int n = 0;
-        //    if (current->left) n++;
-        //    if (current->right) n++;
-        //    if (current->top) n++;
-        //    if (current->bottom) n++;
-        //    current->sprite->state = n;
-        //}
+
+        { // player 1 start
+            Pixel *start = get_pixel(nh-1,0);
+            start->sprite->state = 18;
+            p1pixels.insert(start);
+        }
+
+        { // player 2 start
+            Pixel *start = get_pixel(0,nw-1);
+            start->sprite->state = 19;
+            p2pixels.insert(start);
+        }
+
+        state = P1PLAYING;
+        last_played = -1;
+        update_representation();
+        MessageManager::get()->add_message("p1 starts");
     }
     ~MainApp() {
         unregister_self();
@@ -89,6 +110,102 @@ protected:
         if (ci>=0 and cj>=0 and cj<nw and ci<nh) { return get_pixel(ci,cj); }
         else { return NULL; }
     }
+    void update_representation() {
+        assert(state==P1PLAYING or state==P2PLAYING);
+
+        for (int k=0; k<size; k++) { pixels[k]->playable = false; }
+
+        //update playable pixels
+        PixelsSet *playerpixels = (state == P1PLAYING) ? &p1pixels : &p2pixels;
+        for (PixelsSet::const_iterator i=playerpixels->begin(); i!= playerpixels->end(); i++) {
+            const Pixel *current = *i;
+            if (current->top and current->top->sprite->state<6 and current->top->sprite->state!=last_played)          current->top->playable    = true;
+            if (current->bottom and current->bottom->sprite->state<6 and current->bottom->sprite->state!=last_played) current->bottom->playable = true;
+            if (current->left and current->left->sprite->state<6 and current->left->sprite->state!=last_played)       current->left->playable   = true;
+            if (current->right and current->right->sprite->state<6 and current->right->sprite->state!=last_played)    current->right->playable  = true;
+        }
+
+        //look for end of game
+        int n=0;
+        for (int k=0; k<size; k++) if (pixels[k]->playable) { n++; }
+        if (n==0) {
+            switch (state) {
+            case P1PLAYING:
+                DEBUGMSG("player 1 locked. player 2 win.\n");
+                MessageManager::get()->add_message("p2 wins");
+                state = P1LOCKED;
+                break;
+            case P2PLAYING:
+                DEBUGMSG("player 2 locked. player 1 win.\n");
+                MessageManager::get()->add_message("p1 wins");
+                state = P2LOCKED;
+                break;
+            default:
+                break;
+            }
+        }
+
+    }
+    void play_move(Pixel *playpixel) {
+        if (state!=P1PLAYING and state!=P2PLAYING) {
+            DEBUGMSG("not in playing state!!\n");
+            return;
+        }
+
+        assert(playpixel->playable);
+        last_played = playpixel->sprite->state;
+        PixelsSet *playerpixels = (state == P1PLAYING) ? &p1pixels : &p2pixels;
+        const int offset        = (state == P1PLAYING) ? 6 : 12;
+        const int start_state   = (state == P1PLAYING) ? 18 : 19;
+
+        //reset inqueue state and find initial seeds
+        SeedsQueue wonpixels;
+        for (int k=0; k<size; k++) {
+            Pixel *current = pixels[k];
+            current->inqueue = false;
+            if (current->playable and current->sprite->state==last_played) { wonpixels.push(make_pair(0,current)); current->inqueue = true; }
+        }
+
+        //fast marching on seeds
+        int k = 0;
+        while (not wonpixels.empty()) {
+            int top_distance = wonpixels.top().first;
+            Pixel *top_pixel = wonpixels.top().second;
+            fflush(stdout);
+            wonpixels.pop();
+
+            assert(top_pixel->sprite->state==last_played);
+            playerpixels->insert(top_pixel);
+            if (top_pixel->top and top_pixel->top->inqueue==false and top_pixel->top->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->top)); top_pixel->top->inqueue = true; }
+            if (top_pixel->bottom and top_pixel->bottom->inqueue==false and top_pixel->bottom->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->bottom)); top_pixel->bottom->inqueue = true; }
+            if (top_pixel->left and top_pixel->left->inqueue==false and top_pixel->left->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->left)); top_pixel->left->inqueue = true; }
+            if (top_pixel->right and top_pixel->right->inqueue==false and top_pixel->right->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->right)); top_pixel->right->inqueue = true; }
+            k++;
+        }
+        DEBUGMSG("won %d pixels\n",k);
+
+        //update set color
+        for (PixelsSet::const_iterator i=playerpixels->begin(); i!=playerpixels->end(); i++) if ((*i)->sprite->state!=start_state) {
+            (*i)->sprite->state = last_played+offset;
+        }
+
+        //switch players
+        switch (state) {
+        case P1PLAYING:
+            MessageManager::get()->add_message("p2 plays");
+            state = P2PLAYING;
+            break;
+        case P2PLAYING:
+            MessageManager::get()->add_message("p1 plays");
+            state = P1PLAYING;
+            break;
+        default:
+            break;
+        }
+
+        update_representation();
+    }
+
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_ESCAPE:
@@ -100,10 +217,7 @@ protected:
     virtual bool mouse_down(int button,float x,float y) {
         if (button == 1) {
             Pixel *current = get_hoovered_pixel(x,y);
-            if (current) {
-                current->sprite->state++;
-                current->sprite->state %= current->sprite->nstate;
-            }
+            if (current and current->playable) { play_move(current); }
         }
         return true;
     }
@@ -115,9 +229,9 @@ protected:
         cursor->draw(dt);
 
         Pixel *hoovered = get_hoovered_pixel(cursor->x,cursor->y);
-        if (hoovered) hoovered->magnified = true;
+        if (hoovered and hoovered->playable) hoovered->magnified = true;
         for (int k=0; k<size; k++) { pixels[k]->draw(dt); }
-        if (hoovered) hoovered->magnified = false;
+        if (hoovered and hoovered->playable) hoovered->magnified = false;
         return true;
     }
     virtual void unregister_self() {
@@ -126,8 +240,15 @@ protected:
     const int nh;
     const int size;
     const float spacing;
+
+    enum State { P1PLAYING, P2PLAYING, P1LOCKED, P2LOCKED };
+    State state;
+    int last_played;
+
     Pixel **pixels;
     Sprite *cursor;
+    PixelsSet p1pixels;
+    PixelsSet p2pixels;
 };
 
 int main() {
@@ -163,7 +284,6 @@ int main() {
             SdlManager::get()->register_listener(&fps);
             SdlManager::get()->register_listener(&mainapp);
 
-            MessageManager::get()->add_message("lets get started");
             SdlManager::get()->main_loop();
         }
         SoundManager::free();
