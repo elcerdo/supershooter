@@ -159,6 +159,8 @@ protected:
             return;
         }
 
+        DEBUGMSG("------------\n");
+
         assert(playpixel->playable);
         last_played = playpixel->sprite->state;
         PixelsSet *playerpixels = (state == P1PLAYING) ? &p1pixels : &p2pixels;
@@ -208,40 +210,67 @@ protected:
         if (state == P1PLAYING) { //player 1 ends its turn
             state = P2PLAYING;
             const bool p2locked = update_playable();
+            DEBUGMSG("player 2 locked = %d\n",p2locked);
             if (p2locked) {
-                MessageManager::get()->add_message("p1 win");
-                status->update("p1 win");
-                state = P1WIN;
+                state = P1PLAYING;
+                const bool p1locked = update_playable();
+                DEBUGMSG("player 1 locked = %d\n",p1locked);
+                if (p1locked) {
+                    const int p1score = p1pixels.size();
+                    const int p2score = p2pixels.size();
+                    if (p1score > p2score) {
+                        MessageManager::get()->add_message("p1 score win");
+                        status->update("p1 score win");
+                        state = P1WIN;
+                    } else if (p1score == p2score) {
+                        MessageManager::get()->add_message("draw");
+                        status->update("draw");
+                        state = DRAW;
+                    } else {
+                        MessageManager::get()->add_message("p2 score win");
+                        status->update("p2 score win");
+                        state = P2WIN;
+                    }
+                } else {
+                    endsfx->play_once();
+                    MessageManager::get()->add_message("p1 win");
+                    status->update("p1 win");
+                    state = P1WIN;
+                }
                 endsfx->play_once();
             } else {
                 MessageManager::get()->add_message("p2 plays");
                 status->update("p2");
             }
         } else { //player 2 ends its turn
-            const bool p2locked = update_playable();
             state = P1PLAYING;
             const bool p1locked = update_playable();
-            if (p1locked and p2locked) {
-                const int p1score = p1pixels.size();
-                const int p2score = p2pixels.size();
-                if (p1score > p2score) {
-                    MessageManager::get()->add_message("p1 score win");
-                    status->update("p1 score win");
-                    state = P1WIN;
-                } else if (p1score == p2score) {
-                    MessageManager::get()->add_message("draw");
-                    status->update("draw");
-                    state = DRAW;
+            DEBUGMSG("player 1 locked = %d\n",p1locked);
+            if (p1locked) {
+                state = P2PLAYING;
+                const bool p2locked = update_playable();
+                DEBUGMSG("player 2 locked = %d\n",p2locked);
+                if (p2locked) {
+                    const int p1score = p1pixels.size();
+                    const int p2score = p2pixels.size();
+                    if (p1score > p2score) {
+                        MessageManager::get()->add_message("p1 score win");
+                        status->update("p1 score win");
+                        state = P1WIN;
+                    } else if (p1score == p2score) {
+                        MessageManager::get()->add_message("draw");
+                        status->update("draw");
+                        state = DRAW;
+                    } else {
+                        MessageManager::get()->add_message("p2 score win");
+                        status->update("p2 score win");
+                        state = P2WIN;
+                    }
                 } else {
-                    MessageManager::get()->add_message("p2 score win");
-                    status->update("p2 score win");
+                    MessageManager::get()->add_message("p2 win");
+                    status->update("p2 win");
                     state = P2WIN;
                 }
-                endsfx->play_once();
-            } else if (p1locked and not p2locked) {
-                MessageManager::get()->add_message("p2 win");
-                status->update("p2 win");
-                state = P2WIN;
                 endsfx->play_once();
             } else {
                 MessageManager::get()->add_message("p1 plays");
