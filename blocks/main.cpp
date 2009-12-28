@@ -215,7 +215,7 @@ protected:
                 state = P1PLAYING;
                 const bool p1locked = update_playable();
                 DEBUGMSG("player 1 locked = %d\n",p1locked);
-                if (p1locked) {
+                //if (p1locked) {
                     const int p1score = p1pixels.size();
                     const int p2score = p2pixels.size();
                     if (p1score > p2score) {
@@ -231,12 +231,11 @@ protected:
                         status->update("p2 score win");
                         state = P2WIN;
                     }
-                } else {
-                    endsfx->play_once();
-                    MessageManager::get()->add_message("p1 win");
-                    status->update("p1 win");
-                    state = P1WIN;
-                }
+                //} else {
+                //    MessageManager::get()->add_message("p1 win");
+                //    status->update("p1 win");
+                //    state = P1WIN;
+                //}
                 endsfx->play_once();
             } else {
                 MessageManager::get()->add_message("p2 plays");
@@ -250,7 +249,7 @@ protected:
                 state = P2PLAYING;
                 const bool p2locked = update_playable();
                 DEBUGMSG("player 2 locked = %d\n",p2locked);
-                if (p2locked) {
+                //if (p2locked) {
                     const int p1score = p1pixels.size();
                     const int p2score = p2pixels.size();
                     if (p1score > p2score) {
@@ -266,11 +265,11 @@ protected:
                         status->update("p2 score win");
                         state = P2WIN;
                     }
-                } else {
-                    MessageManager::get()->add_message("p2 win");
-                    status->update("p2 win");
-                    state = P2WIN;
-                }
+                //} else {
+                //    MessageManager::get()->add_message("p2 win");
+                //    status->update("p2 win");
+                //    state = P2WIN;
+                //}
                 endsfx->play_once();
             } else {
                 MessageManager::get()->add_message("p1 plays");

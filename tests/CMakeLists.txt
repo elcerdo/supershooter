@@ -1,3 +1,7 @@
+add_executable(transparent
+    transparent.cpp)
+target_link_libraries(transparent
+    zizi)
 
 add_executable(zizidemo
     zizidemo.cpp)
