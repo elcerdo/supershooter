@@ -3,6 +3,7 @@
 
 #include <string>
 
+//TODO change names to be lib zizi exceptio
 struct Except {
     enum ExceptType {
         SS_INIT_ERR,
@@ -19,7 +20,7 @@ struct Except {
         SS_SOUND_DUPLICATE_ERR,
         SS_SOUND_UNKNOWN_ERR,
     };
-    Except(ExceptType n,const std::string &str="") : n(n), str(str) {};
+    Except(ExceptType n,const std::string &stri) : n(n), str(stri) {};
     ExceptType n;
     std::string str;
 

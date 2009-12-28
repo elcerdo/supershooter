@@ -16,7 +16,7 @@ static SoundManager *mSoundManager=NULL;
 SoundManager *SoundManager::get() { return mSoundManager; }
 void SoundManager::free() { if (mSoundManager) { delete mSoundManager; mSoundManager=NULL; } }
 void SoundManager::init(int nchannel) {
-    if (mSoundManager) throw Except(Except::SS_INIT_ERR);
+    if (mSoundManager) throw Except(Except::SS_INIT_ERR,"sound manager already exists");
     mSoundManager=new SoundManager(nchannel);
 }
 
@@ -26,10 +26,7 @@ void SoundManager::hook_musics_finished() {
 }
 
 SoundManager::SoundManager(int nchannel) : playing(false), play_musics(true), play_sfxs(true), play_musics_continuious(false) {
-    if (Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,nchannel,1024)) {
-        std::cerr<<"cannot initialize sound..."<<std::endl;
-        throw Except(Except::SS_INIT_ERR);
-    }
+    if (Mix_OpenAudio(44100,MIX_DEFAULT_FORMAT,nchannel,1024)) throw Except(Except::SS_INIT_ERR,"cannot initialize sound");
     Mix_HookMusicFinished(SoundManager::hook_musics_finished);
 }
 
@@ -121,7 +118,8 @@ bool SoundManager::load_directory(const std::string &directory) {
 
         try { load_sound(prefix+filename);
         } catch (Except &e) {
-            if (e.n!=Except::SS_SOUND_LOADING_ERR) throw Except(e.n);
+            if (e.n!=Except::SS_SOUND_LOADING_ERR) throw e;
+            else e.dump();
         }
     }
 
@@ -132,22 +130,22 @@ bool SoundManager::load_directory(const std::string &directory) {
 void SoundManager::load_sound(const std::string &filename) {
     static const boost::regex e("(\\A|\\A.*/)(\\w+)\\-(music|sfx).(ogg|mp3)\\Z");
     boost::smatch what;
-    if (not regex_match(filename,what,e)) throw Except(Except::SS_SOUND_LOADING_ERR);
+    if (not regex_match(filename,what,e)) throw Except(Except::SS_SOUND_LOADING_ERR,filename);
 
     if (what[3]=="music") {
-        if (musics.find(what[2])!=musics.end()) throw Except(Except::SS_SOUND_DUPLICATE_ERR);
+        if (musics.find(what[2])!=musics.end()) throw Except(Except::SS_SOUND_DUPLICATE_ERR,what[2]);
 
         Mix_Music *music=Mix_LoadMUS(filename.c_str());
-        if (not music) throw Except(Except::SS_SOUND_LOADING_ERR);
+        if (not music) throw Except(Except::SS_SOUND_LOADING_ERR,filename);
 
         musics[what[2]]=music;
     }
 
     if (what[3]=="sfx") {
-        if (chunks.find(what[2])!=chunks.end()) throw Except(Except::SS_SOUND_DUPLICATE_ERR);
+        if (chunks.find(what[2])!=chunks.end()) throw Except(Except::SS_SOUND_DUPLICATE_ERR,what[2]);
 
         Mix_Chunk *chunk=Mix_LoadWAV(filename.c_str());
-        if (not chunk) throw Except(Except::SS_SOUND_LOADING_ERR);
+        if (not chunk) throw Except(Except::SS_SOUND_LOADING_ERR,filename);
 
         chunks[what[2]]=chunk;
     }

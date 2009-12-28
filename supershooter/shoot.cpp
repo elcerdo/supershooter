@@ -192,7 +192,7 @@ static ShipManager *mShipManager=NULL;
 ShipManager *ShipManager::get() { return mShipManager; }
 void ShipManager::free() { if (mShipManager) { delete mShipManager; mShipManager=NULL; } }
 void ShipManager::init(size_t nspace,const std::string &configfile) {
-    if (mShipManager) throw Except(Except::SS_INIT_ERR);
+    if (mShipManager) throw Except(Except::SS_INIT_ERR,"shipmanager already exists");
     mShipManager=new ShipManager(nspace,configfile);
 }
 
@@ -433,7 +433,7 @@ Sprite *ShipManager::parse_sprite(TiXmlElement *node,XmlShip::Sprites &sprites,S
     std::string id;
     node->QueryValueAttribute("id",&id);
     if (not id.empty()) {
-        if (sprites.find(id)!=sprites.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR);
+        if (sprites.find(id)!=sprites.end()) throw Except(Except::SS_XML_ID_DUPLICATE_ERR,id);
         sprites[id]=body;
     }
 
@@ -480,7 +480,7 @@ static BulletManager *mBulletManager=NULL;
 BulletManager *BulletManager::get() { return mBulletManager; }
 void BulletManager::free() { if (mBulletManager) { delete mBulletManager; mBulletManager=NULL; } }
 void BulletManager::init(size_t nspace) {
-    if (mBulletManager) throw Except(Except::SS_INIT_ERR);
+    if (mBulletManager) throw Except(Except::SS_INIT_ERR,"bulletmanager already exists");
     mBulletManager=new BulletManager(nspace);
 }
 

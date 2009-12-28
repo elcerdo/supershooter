@@ -223,7 +223,7 @@ static SpriteManager *mSpriteManager=NULL;
 SpriteManager *SpriteManager::get() { return mSpriteManager; }
 void SpriteManager::free() { if (mSpriteManager) { delete mSpriteManager; mSpriteManager=NULL; } }
 void SpriteManager::init(size_t maxid) {
-    if (mSpriteManager) throw Except(Except::SS_INIT_ERR);
+    if (mSpriteManager) throw Except(Except::SS_INIT_ERR,"spritemanager already exists");
     mSpriteManager=new SpriteManager(maxid);
 }
 
@@ -270,7 +270,8 @@ bool SpriteManager::load_directory(const std::string &directory) {
 
         try { load_image(prefix+filename);
         } catch (Except &e) {
-            if (e.n!=Except::SS_SPRITE_LOADING_ERR) throw Except(e.n);
+            if (e.n!=Except::SS_SPRITE_LOADING_ERR and e.n!=Except::SS_SPRITE_CONVERSION_ERR) throw e;
+            else e.dump();
         }
     }
 
@@ -281,15 +282,15 @@ bool SpriteManager::load_directory(const std::string &directory) {
 void SpriteManager::load_image(const std::string &filename) {
     static const boost::regex e("(\\A|\\A.*/)(\\w+)(-(\\d+)(x(\\d+))?)?\\.(png|jpg)\\Z");
     boost::smatch what;
-    if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_LOADING_ERR);
-    if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_DUPLICATE_ERR);
+    if (not regex_match(filename,what,e)) throw Except(Except::SS_SPRITE_LOADING_ERR,filename);
+    if (idmap.find(what[2])!=idmap.end()) throw Except(Except::SS_SPRITE_DUPLICATE_ERR,filename);
 
-    if (currentid>=maxid-1) throw Except(Except::SS_SPRITE_TOO_MANY_ERR);
+    if (currentid>=maxid-1) throw Except(Except::SS_SPRITE_TOO_MANY_ERR,"");
 
     SDL_Surface *surf=IMG_Load(filename.c_str());
-    if (not surf) throw Except(Except::SS_SPRITE_LOADING_ERR);
+    if (not surf) throw Except(Except::SS_SPRITE_LOADING_ERR,filename);
 
-    if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR); }
+    if (surf->format->BitsPerPixel!=32) { SDL_FreeSurface(surf); throw Except(Except::SS_SPRITE_CONVERSION_ERR,filename); }
     glBindTexture(GL_TEXTURE_2D,ids[currentid]);
     glTexImage2D(GL_TEXTURE_2D,0,4,surf->w,surf->h,0,GL_RGBA,GL_UNSIGNED_BYTE,static_cast<unsigned char*>(surf->pixels));
     //glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
