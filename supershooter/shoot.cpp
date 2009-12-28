@@ -192,7 +192,7 @@ static ShipManager *mShipManager=NULL;
 ShipManager *ShipManager::get() { return mShipManager; }
 void ShipManager::free() { if (mShipManager) { delete mShipManager; mShipManager=NULL; } }
 void ShipManager::init(size_t nspace,const std::string &configfile) {
-    if (mShipManager) throw Except(Except::SS_INIT_ERR,"shipmanager already exists");
+    if (mShipManager) throw Except(Except::ZIZI_INIT_ERR,"shipmanager already exists");
     mShipManager=new ShipManager(nspace,configfile);
 }
 
@@ -480,7 +480,7 @@ static BulletManager *mBulletManager=NULL;
 BulletManager *BulletManager::get() { return mBulletManager; }
 void BulletManager::free() { if (mBulletManager) { delete mBulletManager; mBulletManager=NULL; } }
 void BulletManager::init(size_t nspace) {
-    if (mBulletManager) throw Except(Except::SS_INIT_ERR,"bulletmanager already exists");
+    if (mBulletManager) throw Except(Except::ZIZI_INIT_ERR,"bulletmanager already exists");
     mBulletManager=new BulletManager(nspace);
 }
 

@@ -6,7 +6,7 @@ static MessageManager *mMessageManager=NULL;
 MessageManager *MessageManager::get() { return mMessageManager; }
 void MessageManager::free() { if (mMessageManager) { delete mMessageManager; mMessageManager=NULL; } }
 void MessageManager::init(size_t nmessage,size_t nfade) {
-    if (mMessageManager) throw Except(Except::SS_INIT_ERR,"messagemanager already exists");
+    if (mMessageManager) throw Except(Except::ZIZI_INIT_ERR,"messagemanager already exists");
     mMessageManager=new MessageManager(nmessage,nfade);
 }
 

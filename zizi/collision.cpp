@@ -24,7 +24,7 @@ static CollisionManager *mCollisionManager=NULL;
 CollisionManager *CollisionManager::get() { return mCollisionManager; }
 void CollisionManager::free() { if (mCollisionManager) { delete mCollisionManager; mCollisionManager=NULL; } }
 void CollisionManager::init(size_t nspace) {
-    if (mCollisionManager) throw Except(Except::SS_INIT_ERR,"collisionmanager already exists");
+    if (mCollisionManager) throw Except(Except::ZIZI_INIT_ERR,"collisionmanager already exists");
     mCollisionManager=new CollisionManager(nspace);
 }
 

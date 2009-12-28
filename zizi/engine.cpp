@@ -10,15 +10,15 @@ static SdlManager *mSdlManager=NULL;
 SdlManager *SdlManager::get() { return mSdlManager; }
 void SdlManager::free() { if (mSdlManager) { delete mSdlManager; mSdlManager=NULL; } }
 void SdlManager::init(int w,int h,int d) {
-    if (mSdlManager) throw Except(Except::SS_INIT_ERR,"sdlmanager already exists");
+    if (mSdlManager) throw Except(Except::ZIZI_INIT_ERR,"sdlmanager already exists");
     mSdlManager=new SdlManager(w,h,d);
 }
 
 SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h), old_ticks(0) {
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER|SDL_OPENGL)) throw Except(Except::SS_INIT_ERR,"cannot initialize sdl");
+    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER|SDL_OPENGL)) throw Except(Except::ZIZI_INIT_ERR,"cannot initialize sdl");
 
     screen=SDL_SetVideoMode(width,height,d,SDL_OPENGL|SDL_DOUBLEBUF);
-    if (not screen) throw Except(Except::SS_INIT_ERR,"cannot create sdl screen");
+    if (not screen) throw Except(Except::ZIZI_INIT_ERR,"cannot create sdl screen");
 
     SDL_SetEventFilter(&event_filter);
     SDL_ShowCursor(false);
