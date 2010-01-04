@@ -10,12 +10,20 @@ using std::endl;
 
 class GuiManager : public Listener {
 public:
+    class Group; //forward declaration
+
     class Widget {
     public:
         Widget() : parent(NULL), enabled(true) {};
         virtual ~Widget() {};
         virtual bool interact(float x, float y) = 0;
         virtual void draw(float x,float y,float dt) const = 0;
+        Group *get_root_group() {
+            if (parent) return parent->get_root_group();
+            Group *casted = dynamic_cast<Group*>(this);
+            if (casted) return casted;
+            return NULL;
+        }
         bool enabled;
         Widget *parent;
     };
@@ -123,9 +131,19 @@ void doitnow(GuiManager::Button *but) {
 }
 void toggle_testb(GuiManager::Button *but) {
     printf("toggle testb...\n");
-    GuiManager::Widget *testb = static_cast<GuiManager::Group*>(but->parent)->get_widget("groupa");
+    GuiManager::Widget *testb = but->get_root_group()->get_widget("groupa");
     if (!testb) return;
     testb->enabled = not testb->enabled;
+}
+
+void toggle_music_callback(GuiManager::Button *but) {
+    StateSprite *spr = dynamic_cast<StateSprite*>(but->sprite);
+    spr->state = SoundManager::get()->toggle_music();
+}
+
+void toggle_sfx_callback(GuiManager::Button *but) {
+    StateSprite *spr = dynamic_cast<StateSprite*>(but->sprite);
+    spr->state = SoundManager::get()->toggle_sfx();
 }
 
 int main() {
@@ -134,6 +152,7 @@ int main() {
         SpriteManager::init();
         SoundManager::init();
 
+        SdlManager::get()->set_background_color(1,.3,.3);
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->load_directory("../data");
         SpriteManager::get()->load_directory("../../data");
@@ -163,6 +182,24 @@ int main() {
         group->add_widget(testc,"testc");
         testc->sprite->x = 260;
         testc->sprite->y = 230;
+
+        {
+            GuiManager::Group *sound_group = new GuiManager::Group();
+            guimanager.add_widget(sound_group,"sound");
+            GuiManager::Button *music_button = new GuiManager::Button(SpriteManager::get()->get_sprite("togglemusic"),toggle_music_callback);
+            music_button->sprite->x = SdlManager::get()->width - 20;
+            music_button->sprite->y = 20;
+            dynamic_cast<StateSprite*>(music_button->sprite)->state = SoundManager::get()->is_playing_music();
+            sound_group->add_widget(music_button,"music");
+            GuiManager::Button *sfx_button = new GuiManager::Button(SpriteManager::get()->get_sprite("togglesfx"),toggle_sfx_callback);
+            sfx_button->sprite->x = music_button->sprite->x - 32;
+            sfx_button->sprite->y = music_button->sprite->y;
+            dynamic_cast<StateSprite*>(sfx_button->sprite)->state = SoundManager::get()->is_playing_sfx();
+            sound_group->add_widget(sfx_button,"sfx");
+        }
+
+
+
 
         Fps fps;
         Killer killer;

@@ -21,10 +21,10 @@ protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_m:
-            SoundManager::get()->toggle_musics();
+            SoundManager::get()->toggle_music();
             break;
         case SDLK_s:
-            SoundManager::get()->toggle_sfxs();
+            SoundManager::get()->toggle_sfx();
             break;
         case SDLK_SPACE:
             cout<<"*****************************"<<endl;
