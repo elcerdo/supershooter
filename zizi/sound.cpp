@@ -90,7 +90,7 @@ Sfx *SoundManager::get_sfx(const std::string &id) {
     return sfx;
 }
     
-bool SoundManager::toogle_musics() {
+bool SoundManager::toggle_musics() {
     play_musics=not play_musics;
     if (not play_musics and playing) {
         Mix_HaltMusic();
@@ -100,7 +100,7 @@ bool SoundManager::toogle_musics() {
     return play_musics;
 }
 
-bool SoundManager::toogle_sfxs() {
+bool SoundManager::toggle_sfxs() {
     play_sfxs=not play_sfxs;
 }
 

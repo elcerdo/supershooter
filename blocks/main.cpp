@@ -281,7 +281,7 @@ protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_f:
-            SdlManager::get()->toogle_fullscreen();
+            SdlManager::get()->toggle_fullscreen();
             break;
         case SDLK_ESCAPE:
             return false;
