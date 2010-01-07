@@ -5,6 +5,7 @@
 #include <iostream>
 #include <map>
 #include <cmath>
+#include <cassert>
 using std::cout;
 using std::endl;
 
@@ -68,17 +69,16 @@ public:
 
     class Button : public Widget {
     public:
-        Button(Sprite *sprite,void (*clicked)(Button*)) : Widget(), sprite(sprite), clicked(clicked) {};
+        Button(const std::string &sprname, void (*clicked)(Button*)) : Widget(), sprite(SpriteManager::get()->get_sprite(sprname)), clicked(clicked) {
+            assert(sprite);
+        };
         virtual ~Button() {
             delete sprite;
         }
         virtual bool interact(float x, float y) {
-            if (not enabled) return false;
-            float dx = fabsf(x-sprite->x)/sprite->w;
-            float dy = fabsf(y-sprite->y)/sprite->h;
-            if (dx>.5 or dy>.5) return false;
-            if (clicked) clicked(this);
-            return true;
+            bool valid = is_click_valid(x,y);
+            if (valid and clicked) clicked(this);
+            return valid;
         }
         virtual void draw(float x,float y,float dt) const {
             if (not enabled) return;
@@ -86,7 +86,37 @@ public:
         }
         Sprite *sprite;
         void (*clicked)(Button*);
+    protected:
+        bool is_click_valid(float x, float y) {
+            if (not enabled) return false;
+            float dx = fabsf(x-sprite->x)/sprite->w;
+            float dy = fabsf(y-sprite->y)/sprite->h;
+            if (dx>.5 or dy>.5) return false;
+            return true;
+        }
     };
+
+    class ToggleButton : public Button {
+    public:
+        ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false) : Button(sprname,toggled), state(istate) {
+            casted = dynamic_cast<StateSprite*>(sprite);
+            assert(casted and casted->nstate>=2);
+            casted->state = state;
+        }
+        virtual bool interact(float x, float y) {
+            bool valid = is_click_valid(x,y);
+            if (valid and clicked) {
+                state = !state;
+                casted->state = state;
+                clicked(this);
+            }
+            return valid;
+        }
+        bool state;
+    protected:
+        StateSprite *casted;
+    };
+
 
     GuiManager() {
         cursor = SpriteManager::get()->get_sprite("cursor");
@@ -130,20 +160,19 @@ void doitnow(GuiManager::Button *but) {
     but->sprite->dump();
 }
 void toggle_testb(GuiManager::Button *but) {
-    printf("toggle testb...\n");
     GuiManager::Widget *testb = but->get_root_group()->get_widget("groupa");
     if (!testb) return;
     testb->enabled = not testb->enabled;
 }
 
 void toggle_music_callback(GuiManager::Button *but) {
-    StateSprite *spr = dynamic_cast<StateSprite*>(but->sprite);
-    spr->state = SoundManager::get()->toggle_music();
+    GuiManager::ToggleButton *casted = static_cast<GuiManager::ToggleButton*>(but);
+    SoundManager::get()->set_playing_music(casted->state);
 }
 
 void toggle_sfx_callback(GuiManager::Button *but) {
-    StateSprite *spr = dynamic_cast<StateSprite*>(but->sprite);
-    spr->state = SoundManager::get()->toggle_sfx();
+    GuiManager::ToggleButton *casted = static_cast<GuiManager::ToggleButton*>(but);
+    SoundManager::get()->set_playing_sfx(casted->state);
 }
 
 int main() {
@@ -166,7 +195,7 @@ int main() {
 
         {
         GuiManager guimanager;
-        GuiManager::Button *testa = new GuiManager::Button(SpriteManager::get()->get_sprite("logo"),toggle_testb);
+        GuiManager::Button *testa = new GuiManager::Button("logo",toggle_testb);
         testa->sprite->x = 250;
         testa->sprite->y = 100;
         guimanager.add_widget(testa,"testa");
@@ -174,11 +203,11 @@ int main() {
         GuiManager::Group *group = new GuiManager::Group();
         guimanager.add_widget(group,"groupa");
 
-        GuiManager::Button *testb = new GuiManager::Button(SpriteManager::get()->get_sprite("bullet02"),doitnow);
+        GuiManager::Button *testb = new GuiManager::Button("bullet02",doitnow);
         group->add_widget(testb,"testb");
         testb->sprite->x = 260;
         testb->sprite->y = 200;
-        GuiManager::Button *testc = new GuiManager::Button(SpriteManager::get()->get_sprite("bullet02"),doitnow);
+        GuiManager::Button *testc = new GuiManager::ToggleButton("check",doitnow);
         group->add_widget(testc,"testc");
         testc->sprite->x = 260;
         testc->sprite->y = 230;
@@ -186,15 +215,13 @@ int main() {
         {
             GuiManager::Group *sound_group = new GuiManager::Group();
             guimanager.add_widget(sound_group,"sound");
-            GuiManager::Button *music_button = new GuiManager::Button(SpriteManager::get()->get_sprite("togglemusic"),toggle_music_callback);
+            GuiManager::Button *music_button = new GuiManager::ToggleButton("togglemusic",toggle_music_callback,SoundManager::get()->is_playing_music());
             music_button->sprite->x = SdlManager::get()->width - 20;
             music_button->sprite->y = 20;
-            dynamic_cast<StateSprite*>(music_button->sprite)->state = SoundManager::get()->is_playing_music();
             sound_group->add_widget(music_button,"music");
-            GuiManager::Button *sfx_button = new GuiManager::Button(SpriteManager::get()->get_sprite("togglesfx"),toggle_sfx_callback);
+            GuiManager::Button *sfx_button = new GuiManager::ToggleButton("togglesfx",toggle_sfx_callback,SoundManager::get()->is_playing_sfx());
             sfx_button->sprite->x = music_button->sprite->x - 32;
             sfx_button->sprite->y = music_button->sprite->y;
-            dynamic_cast<StateSprite*>(sfx_button->sprite)->state = SoundManager::get()->is_playing_sfx();
             sound_group->add_widget(sfx_button,"sfx");
         }
 

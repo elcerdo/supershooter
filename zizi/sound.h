@@ -34,8 +34,10 @@ public:
     Sfx *get_sfx(const std::string &id);
     void play_random_music();
     bool toggle_music();
+    bool set_playing_music(bool);
     bool is_playing_music() const;
     bool toggle_sfx();
+    bool set_playing_sfx(bool);
     bool is_playing_sfx() const;
     bool play_musics_continuious;
 protected:

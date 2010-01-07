@@ -91,7 +91,12 @@ Sfx *SoundManager::get_sfx(const std::string &id) {
 }
     
 bool SoundManager::toggle_music() {
-    play_musics=not play_musics;
+    return set_playing_music(not is_playing_music());
+}
+
+bool SoundManager::set_playing_music(bool nplay) {
+    if (play_musics==nplay) return play_musics;
+    play_musics = nplay;
     if (not play_musics and playing) {
         Mix_HaltMusic();
         playing=false;
@@ -105,7 +110,11 @@ bool SoundManager::is_playing_music() const {
 }
 
 bool SoundManager::toggle_sfx() {
-    play_sfxs=not play_sfxs;
+    return set_playing_sfx(not is_playing_sfx());
+}
+
+bool SoundManager::set_playing_sfx(bool nplay) {
+    play_sfxs = nplay;
     return play_sfxs;
 }
 
