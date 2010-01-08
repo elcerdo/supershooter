@@ -130,9 +130,9 @@ Text::Text(unsigned int id,float w,float h,const std::string &name,const std::st
         StateSprite *current=dynamic_cast<StateSprite*>(create_child(name));
         current->state=istate->second;
         current->x=tx;
-        current->z=5.;
         current->alpha=alpha;
-        tx+=current->w-2.;
+        //tx+=current->w-2.; //FIXME
+        tx+=current->w-1;
     }
 
     update_align();
@@ -177,6 +177,8 @@ void Text::update_align() {
 }
 
 void Text::update_alpha() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->alpha=alpha; }
+
+void Text::update_z() { for (Children::const_iterator i=children.begin(); i!=children.end(); i++) (*i)->z=z; }
 
 void Text::update(const std::string &str) {
     std::string::const_iterator istr=str.begin();

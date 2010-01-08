@@ -98,10 +98,13 @@ public:
 
     class ToggleButton : public Button {
     public:
-        ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false) : Button(sprname,toggled), state(istate) {
+        ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, Text *label=NULL) : Button(sprname,toggled), state(istate), label(label) {
             casted = dynamic_cast<StateSprite*>(sprite);
             assert(casted and casted->nstate>=2);
             casted->state = state;
+        }
+        virtual ~ToggleButton() {
+            if (label) delete label;
         }
         virtual bool interact(float x, float y) {
             bool valid = is_click_valid(x,y);
@@ -112,7 +115,18 @@ public:
             }
             return valid;
         }
+        virtual void draw(float x,float y,float dt) const {
+            Button::draw(x,y,dt);
+            if (not enabled or not label) return;
+            label->draw(dt);
+            label->y = sprite->y;
+            label->x = sprite->x + sprite->w;
+            label->z = sprite->z;
+            label->update_z();
+        }
+
         bool state;
+        Text *label;
     protected:
         StateSprite *casted;
     };
@@ -211,6 +225,10 @@ int main() {
         group->add_widget(testc,"testc");
         testc->sprite->x = 260;
         testc->sprite->y = 230;
+        GuiManager::Button *testd = new GuiManager::ToggleButton("check",doitnow,false,SpriteManager::get()->get_text("prout","font03",Text::LEFT));
+        group->add_widget(testd,"testd");
+        testd->sprite->x = 260;
+        testd->sprite->y = 260;
 
         {
             GuiManager::Group *sound_group = new GuiManager::Group();
