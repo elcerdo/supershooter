@@ -77,11 +77,10 @@ Adding new ship
 To add a new ship to the game add a new **ship** section in the **ships** section of config.xml. Here are the definition of the tags used for defining ships:
 
 **ship**
-
-- must contain one **sprite** and at least one **program**.
-    * health: the initial energy of the ship. *required*
-    * id: must be unique over all ships, used in the wave definition. *required*
-    * score: base point for killing this enemy. *required*
+must contain one **sprite** and at least one **program**.
+* health: the initial energy of the ship. *required*
+* id: must be unique over all ships, used in the wave definition. *required*
+* score: base point for killing this enemy. *required*
 
 ### Defining the look
 
