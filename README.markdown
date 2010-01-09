@@ -39,14 +39,12 @@ Adding new sprites
 Sprites must be saved in the *data* directory in 32bits (RGBA) png. Using the filename the engine will find if the sprite has states or is animated.
 Here are the three kinds of sprite you can define:
 
-static sprites
-:   Static sprites are nothing more than an image. Filename must match *[name].png* where *name* is composed with letters and numbers. *name* will represents the sprite file in the configuration file.
-
-state sprites
-:   State sprites can more than one state. For example font sprites are state sprites. The filename of a state sprite must match *[name]-[nstate].png* where *name* is a unique identifier composed by letters and numbers and *nstate* is the number of state of the sprite. State sprite are build by stacking vertically the images of the different state.
-
-animated sprite
-:   Animated sprite can have different state, in which they are animated over different frame. Filenames must match *[name]-[nstate]x[nframe]* where *name* is an unique identifier, *nstate* is the number of state in the sprite and *nframe*. Animated sprites are built by statcking horizontally multiple state sprites.
+-   static sprites.
+    Static sprites are nothing more than an image. Filename must match *[name].png* where *name* is composed with letters and numbers. *name* will represents the sprite file in the configuration file.
+-   state sprites.
+    State sprites can more than one state. For example font sprites are state sprites. The filename of a state sprite must match *[name]-[nstate].png* where *name* is a unique identifier composed by letters and numbers and *nstate* is the number of state of the sprite. State sprite are build by stacking vertically the images of the different state.
+-   animated sprite
+-   Animated sprite can have different state, in which they are animated over different frame. Filenames must match *[name]-[nstate]x[nframe]* where *name* is an unique identifier, *nstate* is the number of state in the sprite and *nframe*. Animated sprites are built by statcking horizontally multiple state sprites.
 
 Once you have added all images in the *data* directory you can start editing the configuration file.
 
@@ -55,23 +53,21 @@ Basic configuration file
 
 The configuration file *config.xml* is divided in two main section **ships** and **waves**. Here is a minimal configuration file:
 
-~~~{.xml .numberLines}
-<config>
-	<ships>
-		<ship id="ship00" health="100">
-		...
-		</ship>
-		<ship id="ship01" health="100">
-		...
-		</ship>
-	</ships>
-	<waves>
-		<wave id="mainwave">
-		...
-		</wave>
-	</waves>
-</config>
-~~~
+    <config>
+    	<ships>
+    		<ship id="ship00" health="100">
+    		...
+    		</ship>
+    		<ship id="ship01" health="100">
+    		...
+    		</ship>
+    	</ships>
+    	<waves>
+    		<wave id="mainwave">
+    		...
+    		</wave>
+    	</waves>
+    </config>
 
 A more complex example can be found [here](/config.xml) or in the program sources.
  
