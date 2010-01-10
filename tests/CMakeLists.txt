@@ -3,6 +3,11 @@ add_executable(transparent
 target_link_libraries(transparent
     zizi)
 
+add_executable(zizigui
+    zizigui.cpp)
+target_link_libraries(zizigui
+    zizi)
+
 add_executable(zizidemo
     zizidemo.cpp)
 target_link_libraries(zizidemo

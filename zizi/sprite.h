@@ -66,6 +66,7 @@ public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     void update(const std::string &str);
     void update_alpha();
+    void update_z();
     enum Align { LEFT,CENTER,RIGHT };
     Align align;
 protected:

@@ -42,7 +42,7 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
 	glLoadIdentity();
 }
 
-void SdlManager::toogle_fullscreen() const { SDL_WM_ToggleFullScreen(screen); }
+void SdlManager::toggle_fullscreen() const { SDL_WM_ToggleFullScreen(screen); }
 const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
 void SdlManager::get_mouse_position(float &x,float &y) const {
     int xx,yy;

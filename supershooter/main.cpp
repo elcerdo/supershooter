@@ -177,9 +177,9 @@ protected:
         main_menu->update(x,y);
         if (state==IN_MENU) click->play_once();
         if (state==IN_MENU and main_menu->is_selected("quit")) { return false; }
-        else if (state==IN_MENU and main_menu->is_selected("music")) { SoundManager::get()->toogle_musics(); }
-        else if (state==IN_MENU and main_menu->is_selected("sfx")) { SoundManager::get()->toogle_sfxs(); }
-        else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toogle_fullscreen(); }
+        else if (state==IN_MENU and main_menu->is_selected("music")) { SoundManager::get()->toggle_music(); }
+        else if (state==IN_MENU and main_menu->is_selected("sfx")) { SoundManager::get()->toggle_sfx(); }
+        else if (state==IN_MENU and main_menu->is_selected("fullscreen")) { SdlManager::get()->toggle_fullscreen(); }
         else if (state==IN_MENU and main_menu->is_selected("start")) {
             state=GAME_START;
             ShipManager::get()->flush_ships();
@@ -193,8 +193,8 @@ protected:
         return true;
     }
     virtual bool key_down(SDLKey key) {
-        if (key==SDLK_m) { SoundManager::get()->toogle_musics(); return true; }
-        if (key==SDLK_s) { SoundManager::get()->toogle_sfxs(); return true; }
+        if (key==SDLK_m) { SoundManager::get()->toggle_music(); return true; }
+        if (key==SDLK_s) { SoundManager::get()->toggle_sfx(); return true; }
 
         if (key==SDLK_ESCAPE and state==IN_MENU) {
             return false;

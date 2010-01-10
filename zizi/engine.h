@@ -34,7 +34,7 @@ public:
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
-    void toogle_fullscreen() const;
+    void toggle_fullscreen() const;
     void set_background_color(float r,float g,float b);
     const float width,height;
 protected:

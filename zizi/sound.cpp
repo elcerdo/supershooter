@@ -90,8 +90,13 @@ Sfx *SoundManager::get_sfx(const std::string &id) {
     return sfx;
 }
     
-bool SoundManager::toogle_musics() {
-    play_musics=not play_musics;
+bool SoundManager::toggle_music() {
+    return set_playing_music(not is_playing_music());
+}
+
+bool SoundManager::set_playing_music(bool nplay) {
+    if (play_musics==nplay) return play_musics;
+    play_musics = nplay;
     if (not play_musics and playing) {
         Mix_HaltMusic();
         playing=false;
@@ -100,8 +105,21 @@ bool SoundManager::toogle_musics() {
     return play_musics;
 }
 
-bool SoundManager::toogle_sfxs() {
-    play_sfxs=not play_sfxs;
+bool SoundManager::is_playing_music() const {
+    return play_musics;
+}
+
+bool SoundManager::toggle_sfx() {
+    return set_playing_sfx(not is_playing_sfx());
+}
+
+bool SoundManager::set_playing_sfx(bool nplay) {
+    play_sfxs = nplay;
+    return play_sfxs;
+}
+
+bool SoundManager::is_playing_sfx() const {
+    return play_sfxs;
 }
 
 bool SoundManager::load_directory(const std::string &directory) {

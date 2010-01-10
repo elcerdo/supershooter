@@ -33,8 +33,12 @@ public:
     void play_music(const std::string &id);
     Sfx *get_sfx(const std::string &id);
     void play_random_music();
-    bool toogle_musics();
-    bool toogle_sfxs();
+    bool toggle_music();
+    bool set_playing_music(bool);
+    bool is_playing_music() const;
+    bool toggle_sfx();
+    bool set_playing_sfx(bool);
+    bool is_playing_sfx() const;
     bool play_musics_continuious;
 protected:
     static void hook_musics_finished();
