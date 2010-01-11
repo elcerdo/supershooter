@@ -78,34 +78,81 @@ protected:
 };
 
 struct Wheel {
-    Wheel(float x,float y,float drift) : x(x), y(y), brake(0), drift(drift) {
+    Wheel(float x,float y,Sprite *parent,float drift=50,float brake=10e4,float forward=2e5,float reverse=-10e4) : x(x), y(y), brake(brake), drift(drift), state(FREE), forward(forward), reverse(reverse), direction(0), realdirection(0) {
+        sprite = dynamic_cast<StateSprite*>(parent->create_child("onoff"));
+        sprite->x = x;
+        sprite->y = y;
+        sprite->factorx = .5;
+        sprite->factory = .5;
+        sprite->z = 1;
+        arrow = parent->create_child("arrow");
+        arrow->x = x;
+        arrow->y = y;
+        arrow->z = 1.1;
         f[0] = 0;
         f[1] = 0;
-        f[2] = 0;
     }
-    void add_force(const dBodyID &body) {
+    void add_force(const dBodyID &body,float dt) {
+        if (realdirection<direction) realdirection += M_PI*dt; 
+        else realdirection -= M_PI*dt;
+
         const dReal *vel = dBodyGetLinearVel(body);
         const dReal *avel = dBodyGetAngularVel(body);
         const dReal *quat = dBodyGetQuaternion(body);
         float angle = 2*atan2(quat[3],quat[0]);
 
         float brelvel[2] = {vel[0]*cos(angle)+vel[1]*sin(angle)-y*avel[2],-vel[0]*sin(angle)+vel[1]*cos(angle)+x*avel[2]};
-        float relvel[2]  = {brelvel[0]*cos(brake)+brelvel[1]*sin(brake),-brelvel[0]*sin(brake)+brelvel[1]*cos(brake)};
-        printf("%.2f %.2f\n",brelvel[0],brelvel[1]);
+        float relvel[2]  = {brelvel[0]*cos(realdirection)+brelvel[1]*sin(realdirection),-brelvel[0]*sin(realdirection)+brelvel[1]*cos(realdirection)};
+        //printf("%.2f %.2f\n",brelvel[0],brelvel[1]);
 
-        if (relvel[1]>drift) relvel[1] = drift;
-        f[0] = accel*cos(brake)+relvel[1]*6000*sin(brake);
-        f[1] = accel*sin(brake)-relvel[1]*6000*cos(brake);
+        float force;
+        switch (state) {
+        case FREE:
+            force = 0;
+            break;
+        case BRAKE:
+            if (relvel[0]>0) force = -brake;
+            else force = brake;
+            break;
+        case FORWARD:
+            force = forward;
+            break;
+        case REVERSE:
+            force = reverse;
+            break;
+        }
+
+        sprite->state = 0;
+        arrow->angle = realdirection;
+        if (relvel[1]>drift)  { relvel[1] = drift;  sprite->state = 1; }
+        if (relvel[1]<-drift) { relvel[1] = -drift; sprite->state = 1; }
+        f[0] = force*cos(realdirection)+relvel[1]*6e3*sin(realdirection);
+        f[1] = force*sin(realdirection)-relvel[1]*6e3*cos(realdirection);
     }
-    float accel;
-    float brake;
-    float f[3];
+    enum State {BRAKE,FREE,FORWARD,REVERSE};
+    State state;
+    float direction;
     const float x,y;
+    float f[2];
+protected:
+    float realdirection;
+    const float reverse;
+    const float forward;
     const float drift;
+    const float brake;
+    StateSprite *sprite;
+    Sprite *arrow;
 };
     
 struct Truck : public Body {
-    Truck(dWorldID world, dSpaceID space, float x, float y) : FR(45,75,40), FL(45,-75,40), BR(-20,75,40), BL(-20,-75,40) {
+    Truck(dWorldID world, dSpaceID space, float x, float y) : state(Wheel::FREE) {
+        sprite = SpriteManager::get()->get_sprite("pickup");
+        assert(sprite);
+        FR = new Wheel(50,22,sprite);
+        FL = new Wheel(50,-22,sprite);
+        BR = new Wheel(-35,22,sprite);
+        BL = new Wheel(-35,-22,sprite);
+        
         body = dBodyCreate(world);
         dBodySetPosition(body,x,y,0);
 
@@ -116,38 +163,58 @@ struct Truck : public Body {
         dGeomID geom = dCreateBox(space,150,54,20);
         dGeomSetBody(geom,body);
 
-        sprite = SpriteManager::get()->get_sprite("pickup");
-        assert(sprite);
         sprite->x = x;
         sprite->y = y;
-        sprite->factorx = .5;
-        sprite->factory = .5;
 
+        relvel[0] = 0;
+        relvel[1] = 0;
     }
     virtual void update(float dt) {
-        cout << "-----------------------------" << endl;
-        FR.brake = brake;
-        FL.brake = brake;
-        const dReal *vel = dBodyGetLinearVel(body);
-        if (accel>0) {
-            BR.accel = 10*accel;
-            BL.accel = 10*accel;
-            FR.accel = 0;
-            FL.accel = 0;
-        } else {
-            BR.accel = 0;
-            BL.accel = 0;
-            FR.accel = 10*accel;
-            FL.accel = 10*accel;
+        FR->direction = atan(85.*tan(direction)/(85.-22.*tan(direction)));
+        FL->direction = atan(85.*tan(direction)/(85.+22.*tan(direction)));
+        switch (state) {
+        case Wheel::FREE:
+            BR->state = Wheel::FREE;
+            BL->state = Wheel::FREE;
+            FR->state = Wheel::FREE;
+            FL->state = Wheel::FREE;
+            break;
+        case Wheel::BRAKE:
+            BR->state = Wheel::BRAKE;
+            BL->state = Wheel::BRAKE;
+            FR->state = Wheel::BRAKE;
+            FL->state = Wheel::BRAKE;
+            break;
+        case Wheel::FORWARD:
+            BR->state = Wheel::FREE;
+            BL->state = Wheel::FREE;
+            FR->state = Wheel::FORWARD;
+            FL->state = Wheel::FORWARD;
+            break;
+        case Wheel::REVERSE:
+            BR->state = Wheel::FREE;
+            BL->state = Wheel::FREE;
+            FR->state = Wheel::REVERSE;
+            FL->state = Wheel::REVERSE;
+            break;
         }
-        FR.add_force(body);
-        FL.add_force(body);
-        dBodyAddRelForceAtRelPos(body,FL.f[0],FL.f[1],FL.f[2],FL.x,FL.y,0);
-        dBodyAddRelForceAtRelPos(body,FR.f[0],FR.f[1],FR.f[2],FR.x,FR.y,0);
-        BR.add_force(body);
-        BL.add_force(body);
-        dBodyAddRelForceAtRelPos(body,BL.f[0],BL.f[1],BL.f[2],BL.x,BL.y,0);
-        dBodyAddRelForceAtRelPos(body,BR.f[0],BR.f[1],BR.f[2],BR.x,BR.y,0);
+        //printf("%d %d %d %d\n",FR->state,FL->state,BR->state,BL->state);
+
+        FR->add_force(body,dt);
+        FL->add_force(body,dt);
+        BR->add_force(body,dt);
+        BL->add_force(body,dt);
+        dBodyAddRelForceAtRelPos(body,FL->f[0],FL->f[1],0,FL->x,FL->y,0);
+        dBodyAddRelForceAtRelPos(body,FR->f[0],FR->f[1],0,FR->x,FR->y,0);
+        dBodyAddRelForceAtRelPos(body,BL->f[0],BL->f[1],0,BL->x,BL->y,0);
+        dBodyAddRelForceAtRelPos(body,BR->f[0],BR->f[1],0,BR->x,BR->y,0);
+
+        const dReal *vel = dBodyGetLinearVel(body);
+        const dReal *quat = dBodyGetQuaternion(body);
+        float angle = 2*atan2(quat[3],quat[0]);
+        relvel[0] =  vel[0]*cos(angle)+vel[1]*sin(angle);
+        relvel[1] = -vel[0]*sin(angle)+vel[1]*cos(angle);
+        //printf("%.2f %.2f\n",relvel[0],relvel[1]);
     }
     virtual void draw(float dt) {
         restrict_2d();
@@ -168,12 +235,14 @@ struct Truck : public Body {
 
     virtual ~Truck() {
         delete sprite;
+        delete FL,FR,BL,BR;
     }
-    float accel;
-    float brake;
+    Wheel::State state;
+    float direction;
+    float relvel[2];
 protected:
+    Wheel *FL,*FR,*BL,*BR;
     Sprite *sprite;
-    Wheel FL,FR,BL,BR;
 };
 
 class MainApp : public Listener {
@@ -248,16 +317,17 @@ protected:
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_UP:
-            truck->accel = 20000;
+            truck->state = Wheel::FORWARD;
             break;
         case SDLK_DOWN:
-            truck->accel = -20000;
+            if (abs(truck->relvel[0])<100) truck->state = Wheel::REVERSE;
+            else truck->state = Wheel::BRAKE;
             break;
         case SDLK_LEFT:
-            truck->brake = -M_PI/5;
+            truck->direction = -M_PI/5;
             break;
         case SDLK_RIGHT:
-            truck->brake = M_PI/5;
+            truck->direction = M_PI/5;
             break;
         case SDLK_f:
             SdlManager::get()->toggle_fullscreen();
@@ -274,11 +344,11 @@ protected:
         switch (key) {
         case SDLK_UP:
         case SDLK_DOWN:
-            truck->accel = 0;
+            truck->state = Wheel::FREE;
             break;
         case SDLK_LEFT:
         case SDLK_RIGHT:
-            truck->brake = 0;
+            truck->direction = 0;
             break;
         default:
             break;
