@@ -271,6 +271,12 @@ public:
         truck = new Truck(world,space,200,200);
         truck->set_angle(M_PI/3);
         bodies.push_back(truck);
+
+        leftroad = SpriteManager::get()->get_sprite("road");
+        leftroad->z = -.1;
+        leftroad->cy = leftroad->h/2.;
+        leftroad->x = 300;
+        leftroad->y = 0;
     }
     ~MainApp() {
         unregister_self();
@@ -279,6 +285,8 @@ public:
         dJointGroupDestroy(contacts);
         dWorldDestroy(world);
         dCloseODE();
+
+        delete leftroad;
     }
     Body *add_crate(float x, float y) {
         bodies.push_back(new Crate(world,space,x,y));
@@ -362,6 +370,8 @@ protected:
     virtual bool frame_entered(float t,float dt) {
         if (dt<=0) return true;
 
+        leftroad->draw(dt);
+
         for (Bodies::iterator i=bodies.begin(); i!=bodies.end(); i++) { (*i)->update(dt); }
 
         dSpaceCollide(space,static_cast<void*>(this),collide_callback);
@@ -384,6 +394,7 @@ protected:
     typedef std::list<Body*> Bodies;
     Bodies bodies;
     Truck *truck;
+    Sprite *leftroad;
 };
 
 int main() {
