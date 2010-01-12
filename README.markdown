@@ -1,8 +1,8 @@
-Supershooter is an awesome SHMUP game with lots of bullets. It is still very young but it is already playable!!! I made it easily customisable: adding new ships and new sequences of enemies can be done througth editing an xml file and putting images in a directory. For details on how to do this please refer to correspondig [section](#adding-new-content).
+Supershooter is an awesome SHMUP game with lots of bullets. It is still very young but it is already playable!!! I made it easily customisable: adding new ships and new sequences of enemies can be done througth editing an xml file and putting images in a directory. For details on how to do this please refer to correspondig section.
 
 # Installation
 
-Supershooter is hosted at [github](https://github.com/elcerdo/supershooter/tree/master). You can get the bleeding edge version by cloning the public git reposity:
+Supershooter is hosted at [github](https://github.com/elcerdo/supershooter/). You can get the bleeding edge version by cloning the public git reposity:
 
     git clone git://github.com/elcerdo/supershooter.git
 
@@ -69,7 +69,7 @@ The configuration file *config.xml* is divided in two main section **ships** and
     	</waves>
     </config>
 
-A more complex example can be found [here](/config.xml) or in the program sources.
+A more complex example can be found in the program sources.
  
 Adding new ship
 ---------------
