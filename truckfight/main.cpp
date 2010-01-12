@@ -5,6 +5,7 @@
 #include <ode/ode.h>
 #include <cassert>
 #include <list>
+#include <sstream>
 using std::cout;
 using std::cerr;
 using std::endl;
@@ -78,6 +79,7 @@ protected:
 };
 
 struct Wheel {
+    static const float taudirection = .2;
     Wheel(float x,float y,Sprite *parent,float drift=50,float brake=10e4,float forward=2e5,float reverse=-10e4) : x(x), y(y), brake(brake), drift(drift), state(FREE), forward(forward), reverse(reverse), direction(0), realdirection(0) {
         sprite = dynamic_cast<StateSprite*>(parent->create_child("onoff"));
         sprite->x = x;
@@ -93,8 +95,10 @@ struct Wheel {
         f[1] = 0;
     }
     void add_force(const dBodyID &body,float dt) {
-        if (realdirection<direction) realdirection += M_PI*dt; 
-        else realdirection -= M_PI*dt;
+        float drealdirection = dt/taudirection * (realdirection-direction);
+        if (drealdirection > 2e-3) drealdirection = 2e-3;
+        if (drealdirection < -2e-3) drealdirection = -2e-3;
+        realdirection -= drealdirection;
 
         const dReal *vel = dBodyGetLinearVel(body);
         const dReal *avel = dBodyGetAngularVel(body);
@@ -121,6 +125,7 @@ struct Wheel {
             force = reverse;
             break;
         }
+        force -= relvel[0]*40;
 
         sprite->state = 0;
         arrow->angle = realdirection;
@@ -145,7 +150,7 @@ protected:
 };
     
 struct Truck : public Body {
-    Truck(dWorldID world, dSpaceID space, float x, float y) : state(Wheel::FREE) {
+    Truck(dWorldID world, dSpaceID space, float x, float y) : state(Wheel::FREE), direction(0) {
         sprite = SpriteManager::get()->get_sprite("pickup");
         assert(sprite);
         FR = new Wheel(50,22,sprite);
@@ -232,6 +237,8 @@ struct Truck : public Body {
         dReal quat[4] = {cos(angle/2),0,0,sin(angle/2)};
         dBodySetQuaternion(body,quat);
     }
+    float get_x() const { return sprite->x; }
+    float get_y() const { return sprite->y; }
 
     virtual ~Truck() {
         delete sprite;
@@ -245,6 +252,71 @@ protected:
     Sprite *sprite;
 };
 
+struct Roads {
+    Roads() {
+        float accumy = 0;
+        for (int k=0; k<NROADS; k++) {
+            Sprite *leftroad = SpriteManager::get()->get_sprite("road");
+            leftroad->z = -.1;
+            leftroad->cy = -leftroad->h/2.;
+            leftroad->x = LEFTX;
+            leftroad->y = accumy;
+
+            std::stringstream ss;
+            ss << "section " << k;
+            Text *leftlabel = SpriteManager::get()->get_text(ss.str(),"font03",Text::LEFT);
+            leftlabel->cy = -leftlabel->h/2.;
+            leftlabel->x = -leftroad->w/2.;
+            leftroad->z = -.05;
+            leftroad->register_child(leftlabel);
+
+            sections.push_back(std::make_pair(leftroad,leftlabel));
+            accumy += leftroad->h;
+        }
+    }
+    ~Roads() {
+        while (not sections.empty()) {
+            delete sections.back().first;
+            sections.pop_back();
+        }
+    }
+    void update(float dt,float cy) {
+        int csection = ceil(cy/sections.back().first->h);
+        int k=4;
+        while (k--) {
+            int msection = get_middle_section();
+            //printf("%d %d\n",csection,msection);
+
+            if (msection < csection) {
+                Section section = sections.front();
+                sections.pop_front();
+                section.first->y += NROADS*section.first->h;
+                sections.push_back(section);
+            }
+            if (msection > csection) {
+                Section section = sections.back();
+                sections.pop_back();
+                section.first->y -= NROADS*section.first->h;
+                sections.push_front(section);
+            }
+            if (msection == csection) break;
+        }
+        for (Sections::const_iterator i=sections.begin(); i!=sections.end(); i++) { i->first->draw(dt); }
+    }
+
+    static const int NROADS = 5;
+    static const float LEFTX = 300;
+protected:
+    int get_middle_section() const {
+        Sections::const_iterator i=sections.begin();
+        for (int k=0; k<NROADS/2.; k++) { i++; }
+        return i->first->y/i->first->h - 1;
+    }
+    typedef std::pair<Sprite*,Text*> Section;
+    typedef std::list<Section> Sections;
+    Sections sections;
+};
+
 class MainApp : public Listener {
 public:
     MainApp() {
@@ -255,14 +327,14 @@ public:
 
         //dWorldSetGravity(world,0,300.,0);
 
-        dGeomID top = dCreatePlane(space,0,1,0,0);
-        dGeomID bot = dCreatePlane(space,0,-1,0,-SdlManager::get()->height);
+        //dGeomID top = dCreatePlane(space,0,1,0,0);
+        //dGeomID bot = dCreatePlane(space,0,-1,0,-SdlManager::get()->height);
         dGeomID lef = dCreatePlane(space,1,0,0,0);
         dGeomID rig = dCreatePlane(space,-1,0,0,-SdlManager::get()->width);
-        dGeomSetCategoryBits(top,1);
-        dGeomSetCategoryBits(bot,1);
-        dGeomSetCollideBits(top,~2);
-        dGeomSetCollideBits(bot,~2);
+        //dGeomSetCategoryBits(top,1);
+        //dGeomSetCategoryBits(bot,1);
+        //dGeomSetCollideBits(top,~2);
+        //dGeomSetCollideBits(bot,~2);
         dGeomSetCategoryBits(lef,2);
         dGeomSetCategoryBits(rig,2);
         dGeomSetCollideBits(lef,~1);
@@ -272,11 +344,10 @@ public:
         truck->set_angle(M_PI/3);
         bodies.push_back(truck);
 
-        leftroad = SpriteManager::get()->get_sprite("road");
-        leftroad->z = -.1;
-        leftroad->cy = leftroad->h/2.;
-        leftroad->x = 300;
-        leftroad->y = 0;
+        cursor = SpriteManager::get()->get_sprite("cursor");
+        cursor->cx = cursor->w/2.;
+        cursor->cy = cursor->h/2.;
+        cursor->z  = 4;
     }
     ~MainApp() {
         unregister_self();
@@ -286,7 +357,7 @@ public:
         dWorldDestroy(world);
         dCloseODE();
 
-        delete leftroad;
+        delete cursor;
     }
     Body *add_crate(float x, float y) {
         bodies.push_back(new Crate(world,space,x,y));
@@ -337,7 +408,7 @@ protected:
         case SDLK_RIGHT:
             truck->direction = M_PI/5;
             break;
-        case SDLK_f:
+        case SDLK_d:
             SdlManager::get()->toggle_fullscreen();
             break;
         case SDLK_ESCAPE:
@@ -368,9 +439,14 @@ protected:
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
+        SdlManager::get()->get_overlay_mouse_position(cursor->x,cursor->y);
+        cursor->draw_overlay(dt);
+
         if (dt<=0) return true;
 
-        leftroad->draw(dt);
+        SdlManager::get()->set_screen_center(SdlManager::get()->width/2.,truck->get_y());
+        for (Bodies::iterator i=bodies.begin(); i!=bodies.end(); i++) { (*i)->draw(dt); }
+        roads.update(dt,truck->get_y());
 
         for (Bodies::iterator i=bodies.begin(); i!=bodies.end(); i++) { (*i)->update(dt); }
 
@@ -378,7 +454,6 @@ protected:
         dWorldQuickStep(world,dt);
         dJointGroupEmpty(contacts);
 
-        for (Bodies::iterator i=bodies.begin(); i!=bodies.end(); i++) { (*i)->draw(dt); }
         return true;
     }
     virtual void unregister_self() {
@@ -394,7 +469,8 @@ protected:
     typedef std::list<Body*> Bodies;
     Bodies bodies;
     Truck *truck;
-    Sprite *leftroad;
+    Roads roads;
+    Sprite *cursor;
 };
 
 int main() {
@@ -402,7 +478,7 @@ int main() {
         srand(time(NULL));
 
         SdlManager::init();
-        SdlManager::get()->set_background_color(0.2,0.4,0.4);
+        SdlManager::get()->set_background_color(0.2,0.4,0.2);
 
         SoundManager::init();
         if (not SoundManager::get()->load_directory("data"))

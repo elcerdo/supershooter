@@ -9,12 +9,12 @@ static SdlManager *mSdlManager=NULL;
 
 SdlManager *SdlManager::get() { return mSdlManager; }
 void SdlManager::free() { if (mSdlManager) { delete mSdlManager; mSdlManager=NULL; } }
-void SdlManager::init(int w,int h,int d) {
+void SdlManager::init(int w,int h,int d, float x, float y) {
     if (mSdlManager) throw Except(Except::ZIZI_INIT_ERR,"sdlmanager already exists");
-    mSdlManager=new SdlManager(w,h,d);
+    mSdlManager=new SdlManager(w,h,d,x,y);
 }
 
-SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), height(h), old_ticks(0) {
+SdlManager::SdlManager(int w,int h,int d, float x, float y) : in_main_loop(false), width(w), height(h), old_ticks(0), x(x), y(y) {
     if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO|SDL_INIT_TIMER|SDL_OPENGL)) throw Except(Except::ZIZI_INIT_ERR,"cannot initialize sdl");
 
     screen=SDL_SetVideoMode(width,height,d,SDL_OPENGL|SDL_DOUBLEBUF);
@@ -34,21 +34,38 @@ SdlManager::SdlManager(int w,int h,int d) : in_main_loop(false), width(w), heigh
     glEnable(GL_ALPHA_TEST);
     glAlphaFunc(GL_GREATER,0.05);
 
+    update_projection();
+}
+
+void SdlManager::update_projection() const {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	glOrtho(0,w,h,0,-10.0,10.0);
+	glOrtho(x,x+width,y+height,y,-10.0,10.0);
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 }
 
+void SdlManager::set_screen_center(float cx,float cy) {
+    const_cast<float&>(x) = cx-width/2.;
+    const_cast<float&>(y) = cy-height/2.;
+    update_projection();
+}
+
 void SdlManager::toggle_fullscreen() const { SDL_WM_ToggleFullScreen(screen); }
 const unsigned char *SdlManager::get_key_state() const { return SDL_GetKeyState(NULL); }
-void SdlManager::get_mouse_position(float &x,float &y) const {
+void SdlManager::get_overlay_mouse_position(float &rx,float &ry) const {
     int xx,yy;
     SDL_GetMouseState(&xx,&yy);
-    x=xx; y=yy;
+    rx=xx; ry=yy;
 }
+
+void SdlManager::get_mouse_position(float &xx,float &yy) const {
+    get_overlay_mouse_position(xx,yy);
+    xx += x;
+    yy += y;
+}
+
 void SdlManager::set_background_color(float r,float g,float b) { glClearColor(r,g,b,0); }
 
 SdlManager::~SdlManager() {
@@ -91,10 +108,10 @@ void SdlManager::main_loop() {
                 for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->key_up(event.key.keysym.sym);
                 break;
             case SDL_MOUSEBUTTONDOWN:
-                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_down(event.button.button,event.button.x,event.button.y);
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_down(event.button.button,event.button.x+x,event.button.y+y);
                 break;
             case SDL_MOUSEBUTTONUP:
-                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_up(event.button.button,event.button.x,event.button.y);
+                for (Listeners::const_iterator i=listeners.begin(); i!=listeners.end() and not quit; i++) quit=not (*i)->mouse_up(event.button.button,event.button.x+x,event.button.y+y);
                 break;
             case SDL_QUIT:      
                 quit=true;

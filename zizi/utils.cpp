@@ -27,7 +27,7 @@ void Fps::set_display(bool disp) {
 }
 
 bool Fps::frame_entered(float t,float dt) {
-    if (display) text->draw(dt);
+    if (display) text->draw_overlay(dt);
     frame++;
     if (t>update_t+.5) {
         std::stringstream ss;

@@ -26,21 +26,25 @@ class SdlManager {
 public:
     static SdlManager *get();
     static void free();
-    static void init(int w=1024,int h=768, int d=32);
+    static void init(int w=1024,int h=768, int d=32, float x=0, float y=0);
 
     const unsigned char *get_key_state() const;
     void get_mouse_position(float &x,float &y) const;
+    void get_overlay_mouse_position(float &x,float &y) const;
 
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
     void toggle_fullscreen() const;
+    void set_screen_center(float cx,float cy);
+    void update_projection() const;
     void set_background_color(float r,float g,float b);
+    const float x,y;
     const float width,height;
 protected:
     typedef std::set<Listener*> Listeners;
 
-    SdlManager(int w,int h,int d);
+    SdlManager(int w,int h,int d,float x,float y);
     ~SdlManager();
 
     static int event_filter(const SDL_Event *ev);

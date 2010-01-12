@@ -7,6 +7,7 @@
 #include <GL/gl.h>
 #include <cmath>
 #include "except.h"
+#include "engine.h"
 static long int nsprites_created=0;
 static long int nsprites_destroyed=0;
 
@@ -17,11 +18,15 @@ Sprite::~Sprite() {
     for (Children::const_iterator i=children.begin(); i!=children.end(); i++) delete *i;
 }
 
-Sprite *Sprite::create_child(const std::string &name) {
-    Sprite *child=SpriteManager::get()->get_sprite(name);
-    child->parent=this;
+Sprite *Sprite::register_child(Sprite *child) {
+    child->parent = this;
     children.insert(child);
     return child;
+}
+
+Sprite *Sprite::create_child(const std::string &name) {
+    Sprite *child = SpriteManager::get()->get_sprite(name);
+    return register_child(child);
 }
 
 void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const {
@@ -34,6 +39,13 @@ void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afact
         afactorx*=factorx;
         afactory*=factory;
     }
+}
+
+void Sprite::draw_overlay(float dt) const {
+    glPushMatrix();
+        glTranslatef(SdlManager::get()->x,SdlManager::get()->y,0);
+        draw(dt);
+    glPopMatrix();
 }
 
 void Sprite::draw(float dt) const {
@@ -154,22 +166,25 @@ void Text::dump(std::ostream &os,const std::string &indent) const {
 }
 
 void Text::update_align() {
+    float childw=0,childh=0;
     if (not children.empty()) {
-        const_cast<float&>(w)=factorx*((*children.begin())->w-2.)*(children.size()-1.);
-        const_cast<float&>(h)=(*children.begin())->h;
-    } else {
-        const_cast<float&>(w)=0;
-        const_cast<float&>(h)=0;
+        childw = (*children.begin())->w-1.;
+        childh = (*children.begin())->h;
     }
+
+    const_cast<float&>(w) = factorx*childw*children.size();
+    const_cast<float&>(h) = childh;
 
     switch (align) {
     case RIGHT:
-        this->cx=-w;
+        this->cx=-w+childw/2.;
         break;
     case CENTER:
         this->cx=-w/2.;
         break;
     case LEFT:
+        this->cx=childw/2.;
+        break;
     default:
         break;
     }

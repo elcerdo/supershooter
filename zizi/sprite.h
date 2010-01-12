@@ -11,7 +11,9 @@ friend class SpriteManager;
 public:
     virtual void dump(std::ostream &os=std::cout,const std::string &indent="") const;
     virtual void draw(float dt) const;
+    void draw_overlay(float dt) const;
     Sprite *create_child(const std::string &name);
+    Sprite *register_child(Sprite *child);
     void absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const;
 
     virtual ~Sprite();
