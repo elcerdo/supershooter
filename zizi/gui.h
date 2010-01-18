@@ -5,15 +5,12 @@
 #include "sound.h"
 #include "sprite.h"
 
-class Group; //forward declaration
-
 class Widget {
 public:
     Widget();
     virtual ~Widget();
     virtual bool interact(float x, float y) = 0;
-    virtual void draw(float x,float y,float dt) const = 0;
-    Group *get_root_group();
+    virtual bool draw(float x,float y,float dt) const = 0;
 
     bool enabled;
     Widget *parent;
@@ -27,8 +24,8 @@ public:
     Widget *get_widget(const std::string &name);
 
     virtual bool interact(float x, float y);
-    virtual void draw(float x,float y,float dt) const;
-
+    virtual bool draw(float x,float y,float dt) const;
+protected:
     typedef std::map<std::string,Widget*> Widgets;
     Widgets widgets;
 };
@@ -39,7 +36,7 @@ public:
     virtual ~Button();
 
     virtual bool interact(float x, float y);
-    virtual void draw(float x,float y,float dt) const;
+    virtual bool draw(float x,float y,float dt) const;
 
     Sprite *sprite;
 protected:
@@ -50,11 +47,11 @@ protected:
 
 class ToggleButton : public Button {
 public:
-    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, Text *label=NULL);
+    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, const std::string &text="", const std::string &font="font03", Text::Align align=Text::LEFT);
     virtual ~ToggleButton();
 
     virtual bool interact(float x, float y);
-    virtual void draw(float x,float y,float dt) const;
+    virtual bool draw(float x,float y,float dt) const;
 
     bool state;
     Text *label;
@@ -70,6 +67,9 @@ public:
     static void init();
 
     void add_widget(Widget *widget,const std::string &name);
+    void add_sound_widgets(const std::string &grpname="sound");
+    Widget *get_widget(const std::string &name);
+    void set_display(bool disp);
 protected:
     GuiManager();
     ~GuiManager();
@@ -82,7 +82,7 @@ protected:
 
     Sprite *cursor;
     Sfx *click;
-    Widget *mainwidget;
+    Group *maingroup;
 };
 
 #endif

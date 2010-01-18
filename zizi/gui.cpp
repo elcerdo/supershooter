@@ -3,16 +3,10 @@
 #include <cmath>
 #include <cassert>
 #include "except.h"
+#include "sound.h"
 
 Widget::Widget() : parent(NULL), enabled(true) {};
 Widget::~Widget() {};
-
-Group *Widget::get_root_group() {
-    if (parent) return parent->get_root_group();
-    Group *casted = dynamic_cast<Group*>(this);
-    if (casted) return casted;
-    return NULL;
-}
 
 Group::Group() : Widget() {};
 Group::~Group() {
@@ -43,12 +37,14 @@ bool Group::interact(float x, float y) {
     return ret;
 }
 
-void Group::draw(float x,float y,float dt) const {
-    if (not enabled) return;
+bool Group::draw(float x,float y,float dt) const {
+    if (not enabled) return false;
+    bool any = false;
     for (Widgets::const_iterator i=widgets.begin(); i!=widgets.end(); i++) {
         Widget *widget = i->second;
-        widget->draw(x,y,dt);
+        any |= widget->draw(x,y,dt);
     }
+    return any;
 }
 
 Button::Button(const std::string &sprname, void (*clicked)(Button*)) : Widget(), sprite(SpriteManager::get()->get_sprite(sprname)), clicked(clicked) { assert(sprite); }
@@ -60,9 +56,10 @@ bool Button::interact(float x, float y) {
     return valid;
 }
 
-void Button::draw(float x,float y,float dt) const {
-    if (not enabled) return;
+bool Button::draw(float x,float y,float dt) const {
+    if (not enabled) return false;
     sprite->draw(dt);
+    return true;
 }
 
 bool Button::is_click_valid(float x, float y) {
@@ -73,7 +70,8 @@ bool Button::is_click_valid(float x, float y) {
     return true;
 }
 
-ToggleButton::ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate, Text *label) : Button(sprname,toggled), state(istate), label(label) {
+ToggleButton::ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate, const std::string &text, const std::string &font, Text::Align align) : Button(sprname,toggled), state(istate), label(NULL) {
+    if (text!=std::string()) { label = SpriteManager::get()->get_text(text,font,align); }
     casted = dynamic_cast<StateSprite*>(sprite);
     assert(casted and casted->nstate>=2);
     casted->state = state;
@@ -92,14 +90,16 @@ bool ToggleButton::interact(float x, float y) {
     return valid;
 }
 
-void ToggleButton::draw(float x,float y,float dt) const {
-    Button::draw(x,y,dt);
-    if (not enabled or not label) return;
-    label->draw(dt);
-    label->y = sprite->y;
-    label->x = sprite->x + sprite->w;
-    label->z = sprite->z;
-    label->update_z();
+bool ToggleButton::draw(float x,float y,float dt) const {
+    if (not Button::draw(x,y,dt)) return false;
+    if (label) {
+        label->draw(dt);
+        label->y = sprite->y;
+        label->x = sprite->x + sprite->w;
+        label->z = sprite->z;
+        label->update_z();
+    }
+    return true;
 }
 
 static GuiManager *mGuiManager=NULL;
@@ -107,12 +107,16 @@ static GuiManager *mGuiManager=NULL;
 GuiManager *GuiManager::get() { return mGuiManager; }
 void GuiManager::free() { if (mGuiManager) { delete mGuiManager; mGuiManager=NULL; } }
 void GuiManager::init() {
-    if (mGuiManager) throw Except(Except::ZIZI_INIT_ERR,"messagemanager already exists");
+    if (mGuiManager) throw Except(Except::ZIZI_INIT_ERR,"guimanager already exists");
     mGuiManager=new GuiManager();
 }
 
-GuiManager::GuiManager() : cursor(NULL), click(NULL) {
-    mainwidget = new Group();
+GuiManager::GuiManager() : cursor(NULL), click(NULL), maingroup(new Group()) { }
+GuiManager::~GuiManager() {
+    unregister_self();
+    delete maingroup;
+    if (cursor) delete cursor;
+    if (click)  delete click;
 }
 
 void GuiManager::register_self() {
@@ -126,29 +130,53 @@ void GuiManager::register_self() {
     if (not click) click = SoundManager::get()->get_sfx("click");
 }
 
-GuiManager::~GuiManager() {
-    unregister_self();
-    delete mainwidget;
-    if (cursor) delete cursor;
-    if (click)  delete click;
+void GuiManager::set_display(bool disp) {
+    maingroup->enabled = disp;
 }
 
 void GuiManager::add_widget(Widget *widget,const std::string &name) {
-    static_cast<Group*>(mainwidget)->add_widget(widget,name);
+    maingroup->add_widget(widget,name);
+}
+
+Widget *GuiManager::get_widget(const std::string &name) {
+    return maingroup->get_widget(name);
 }
 
 bool GuiManager::key_down(SDLKey key) { }
 
 bool GuiManager::mouse_down(int button,float x,float y) {
-    if (mainwidget->interact(x,y)) click->play_once();
+    if (maingroup->interact(x,y)) click->play_once();
     return true;
 }
 
 bool GuiManager::frame_entered(float t,float dt) {
     SdlManager::get()->get_mouse_position(cursor->x,cursor->y);
-    cursor->draw(dt);
-    mainwidget->draw(cursor->x,cursor->y,dt);
+    if (maingroup->draw(cursor->x,cursor->y,dt)) cursor->draw(dt);
     return true;
 }
 
 void GuiManager::unregister_self() { }
+
+void toggle_music_callback(Button *but) {
+    ToggleButton *casted = static_cast<ToggleButton*>(but);
+    SoundManager::get()->set_playing_music(casted->state);
+}
+
+void toggle_sfx_callback(Button *but) {
+    ToggleButton *casted = static_cast<ToggleButton*>(but);
+    SoundManager::get()->set_playing_sfx(casted->state);
+}
+
+void GuiManager::add_sound_widgets(const std::string &grpname) {
+    Group *sound_group = new Group();
+    GuiManager::get()->add_widget(sound_group,grpname);
+
+    Button *music_button = new ToggleButton("togglemusic",toggle_music_callback,SoundManager::get()->is_playing_music());
+    music_button->sprite->x = SdlManager::get()->width - 20;
+    music_button->sprite->y = 20;
+    sound_group->add_widget(music_button,"music");
+    Button *sfx_button = new ToggleButton("togglesfx",toggle_sfx_callback,SoundManager::get()->is_playing_sfx());
+    sfx_button->sprite->x = music_button->sprite->x - 32;
+    sfx_button->sprite->y = music_button->sprite->y;
+    sound_group->add_widget(sfx_button,"sfx");
+}

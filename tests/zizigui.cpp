@@ -10,19 +10,9 @@ void doitnow(Button *but) {
     but->sprite->dump();
 }
 void toggle_testb(Button *but) {
-    Widget *testb = but->get_root_group()->get_widget("groupa");
+    Widget *testb = GuiManager::get()->get_widget("groupa");
     if (!testb) return;
     testb->enabled = not testb->enabled;
-}
-
-void toggle_music_callback(Button *but) {
-    ToggleButton *casted = static_cast<ToggleButton*>(but);
-    SoundManager::get()->set_playing_music(casted->state);
-}
-
-void toggle_sfx_callback(Button *but) {
-    ToggleButton *casted = static_cast<ToggleButton*>(but);
-    SoundManager::get()->set_playing_sfx(casted->state);
 }
 
 int main() {
@@ -33,6 +23,7 @@ int main() {
         GuiManager::init();
 
         SdlManager::get()->set_background_color(1,.3,.3);
+
         SpriteManager::get()->load_directory("data");
         SpriteManager::get()->load_directory("../data");
         SpriteManager::get()->load_directory("../../data");
@@ -43,6 +34,8 @@ int main() {
         SoundManager::get()->load_directory("../../data");
         SoundManager::get()->play_musics_continuious=true;
         SoundManager::get()->dump(cout);
+
+        GuiManager::get()->add_sound_widgets();
 
         {
         Button *testa = new Button("logo",toggle_testb);
@@ -61,23 +54,11 @@ int main() {
         group->add_widget(testc,"testc");
         testc->sprite->x = 260;
         testc->sprite->y = 230;
-        Button *testd = new ToggleButton("check",doitnow,false,SpriteManager::get()->get_text("prout","font03",Text::LEFT));
+        Button *testd = new ToggleButton("check",doitnow,false,"prout","font03",Text::LEFT);
         group->add_widget(testd,"testd");
         testd->sprite->x = 260;
         testd->sprite->y = 260;
 
-        {
-            Group *sound_group = new Group();
-            GuiManager::get()->add_widget(sound_group,"sound");
-            Button *music_button = new ToggleButton("togglemusic",toggle_music_callback,SoundManager::get()->is_playing_music());
-            music_button->sprite->x = SdlManager::get()->width - 20;
-            music_button->sprite->y = 20;
-            sound_group->add_widget(music_button,"music");
-            Button *sfx_button = new ToggleButton("togglesfx",toggle_sfx_callback,SoundManager::get()->is_playing_sfx());
-            sfx_button->sprite->x = music_button->sprite->x - 32;
-            sfx_button->sprite->y = music_button->sprite->y;
-            sound_group->add_widget(sfx_button,"sfx");
-        }
 
         Fps fps;
         Killer killer;
