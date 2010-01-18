@@ -47,6 +47,59 @@ bool Group::draw(float x,float y,float dt) const {
     return any;
 }
 
+Array::Array(int nw, int nh) : nw(nw), nh(nh), size(nw*nh) {
+    widgets = new Widget*[size];
+    for (int k=0; k<size; k++) { widgets[k] = NULL; }
+}
+
+Array::~Array() {
+    for (int k=0; k<size; k++) if (widgets[k]!=NULL) { delete widgets[k]; widgets[k] = NULL; }
+    delete [] widgets;
+}
+
+void Array::add_widget(Widget *widget,int row,int column) {
+    if (row<0 or row>=nh or column<0 or column>=nw) {
+        delete widget;
+        return;
+    }
+
+    Widget *&current = unflatten(row,column);
+    if (current) {
+        delete current;
+        current = NULL;
+    }
+
+    assert(not current);
+    current = widget;
+}
+
+Widget *Array::get_widget(int row,int column) {
+    if (row<0 or row>=nh or column<0 or column>=nw) return NULL;
+    return unflatten(row,column);
+}
+
+bool Array::interact(float x, float y) {
+    if (not enabled) return false;
+    bool ret = false;
+    for (int k=0; k<size; k++) {
+        Widget *widget = widgets[k];
+        if (widget) ret |= widget->interact(x,y);
+    }
+    return ret;
+}
+
+bool Array::draw(float x,float y,float dt) const {
+    if (not enabled) return false;
+    bool any = false;
+    for (int k=0; k<size; k++) {
+        const Widget *widget = widgets[k];
+        if (widget) any |= widget->draw(x,y,dt);
+    }
+    return any;
+}
+
+Widget *&Array::unflatten(int row,int column) { return widgets[row+column*nh]; }
+
 Button::Button(const std::string &sprname, void (*clicked)(Button*)) : Widget(), sprite(SpriteManager::get()->get_sprite(sprname)), clicked(clicked) { assert(sprite); }
 Button::~Button() { delete sprite; }
 
@@ -62,7 +115,7 @@ bool Button::draw(float x,float y,float dt) const {
     return true;
 }
 
-bool Button::is_click_valid(float x, float y) {
+bool Button::is_click_valid(float x, float y) const {
     if (not enabled) return false;
     float dx = fabsf(x-sprite->x)/sprite->w;
     float dy = fabsf(y-sprite->y)/sprite->h;

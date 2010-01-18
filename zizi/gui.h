@@ -30,6 +30,22 @@ protected:
     Widgets widgets;
 };
 
+class Array : public Widget {
+public:
+    Array(int nw, int nh);
+    virtual ~Array();
+    void add_widget(Widget *widget,int row,int column);
+    Widget *get_widget(int row,int column);
+
+    virtual bool interact(float x, float y);
+    virtual bool draw(float x,float y,float dt) const;
+protected:
+    Widget *&unflatten(int row,int column);
+
+    const int nw,nh,size;
+    Widget **widgets;
+};
+
 class Button : public Widget {
 public:
     Button(const std::string &sprname, void (*clicked)(Button*));
@@ -40,7 +56,7 @@ public:
 
     Sprite *sprite;
 protected:
-    bool is_click_valid(float x, float y);
+    bool is_click_valid(float x, float y) const;
 
     void (*clicked)(Button*);
 };
