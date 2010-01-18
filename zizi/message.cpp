@@ -1,5 +1,5 @@
 #include "message.h"
-#include "except.cpp"
+#include "except.h"
 
 static MessageManager *mMessageManager=NULL;
 

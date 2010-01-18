@@ -77,10 +77,12 @@ int main() {
         SoundManager::init();
 
         SpriteManager::get()->load_directory("data");
+        SpriteManager::get()->load_directory("../data");
         SpriteManager::get()->load_directory("../../data");
         SpriteManager::get()->dump(cout);
 
         SoundManager::get()->load_directory("data");
+        SoundManager::get()->load_directory("../data");
         SoundManager::get()->load_directory("../../data");
         SoundManager::get()->play_musics_continuious=true;
         SoundManager::get()->play_music("ultraetron");

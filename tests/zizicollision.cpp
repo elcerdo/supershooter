@@ -65,10 +65,11 @@ int main() {
         std::string configfile;
         SpriteManager::init();
         configfile="config.xml"; if (not SpriteManager::get()->load_directory("data")) {
+        configfile="../config.xml"; if (not SpriteManager::get()->load_directory("../data")) {
         configfile="../../config.xml"; if (not SpriteManager::get()->load_directory("../../data")) {
             cerr<<"can't locate sprite data..."<<endl;
             return 1;
-        }}
+        }}}
         SpriteManager::get()->dump();
 
         CollisionManager::init();

@@ -4,6 +4,7 @@ add_library(zizi
     sound.cpp
     collision.cpp
     message.cpp
+    gui.cpp
     utils.cpp
     except.cpp)
 target_link_libraries(zizi
