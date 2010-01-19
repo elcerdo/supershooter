@@ -44,6 +44,10 @@ Move *MoveBlocks::deepcopy() const {
 	return copy;
 }
 
+const MoveBlocks& BoardBlocks::get_const_lastmove() const {
+    return lastmove;
+}
+
 bool MoveBlocks::compare (const Move& abstract_move) const {
     const MoveBlocks &move=dynamic_cast<const MoveBlocks&>(abstract_move);
 	return Move::compare(abstract_move) and color==move.color;

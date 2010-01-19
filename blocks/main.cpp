@@ -9,10 +9,12 @@ using std::cerr;
 using std::endl;
 using std::cout;
 
+void pixel_callback(Button *but); //forward
+
 class Pixel : public Button {
 public:
     static const float MAGNIFYFACTOR = 1.2;
-    Pixel(Size row, Size column) : Button("blocks",callback), magnifiable(false), row(row), column(column) {
+    Pixel() : Button("blocks",pixel_callback), magnifiable(false), color(NONE) {
         casted = dynamic_cast<StateSprite*>(sprite);
         assert(casted);
 
@@ -43,26 +45,120 @@ public:
         return true;
     }
 
-    void update(int state,bool playable) {
+    void update(int state,bool playable,Color color) {
         magnifiable = playable;
         casted->state = state;
+        this->color = color;
     }
 
-    const Size row,column;
+    Color get_color() const { return color; }
 private:
+    Color color;
     bool magnifiable;
     StateSprite *casted;
-
-    static void callback(Button *but) {
-        cout<<"callback"<<endl;
-        but->sprite->dump();
-    }
 };
 
-class MainApp : public Listener {
+class Submittable {
+public:
+    virtual void submit_move(const MoveBlocks *move) = 0;
+};
+
+class Player {
+public:
+    virtual void start_playing(const BoardBlocks &board, const MoveBlocks &oppmove,Submittable *answer) = 0;
+};
+
+class Observer {
+public:
+    virtual void board_updated(const BoardBlocks &board) = 0;
+};
+
+class Referee : public Submittable {
+public:
+    Referee(int nw=22, int nh=14) : nw(nw), nh(nh), board(NULL), p1(NULL), p2(NULL), observer(NULL), winner(NOT_PLAYED) {}
+    ~Referee() {
+        if (board) delete board;
+    }
+    void reset(Player *p1, Player *p2) {
+        assert(winner == NOT_PLAYED);
+        assert(not board);
+        assert(not this->p1 and p1);
+        assert(not this->p2 and p2);
+
+        this->p1 = p1;
+        this->p2 = p2;
+        this->board = new BoardBlocks(nw,nh,true);
+        board_modified();
+
+        banco();
+    }
+    const BoardBlocks &get_const_board() const {
+        assert(board);
+        return *board;
+    }
+    std::string get_status() const {
+        if (not board) return "uninitialized";
+
+        if (winner==PLAYER_1) return "p1 win";
+        if (winner==PLAYER_2) return "p2 win";
+
+        const MoveBlocks &lastmove = board->get_const_lastmove();
+        if (lastmove.player==PLAYER_1) return "p2 playing";
+        if (lastmove.player==PLAYER_2) return "p1 playing";
+
+        return "undefined";
+    }
+    virtual void submit_move(const MoveBlocks *move) {
+        if (move) {
+            assert(winner == NOT_PLAYED);
+            const MoveBlocks &lastmove = board->get_const_lastmove();
+            assert(lastmove.player==other_player(move->player));
+            board->play_move(*move);
+        }
+
+        winner = board->check_for_win(); 
+        board_modified();
+
+        banco();
+    }
+
+    Observer *observer;
+    const int nw,nh;
+protected:
+    void banco() {
+        if (winner!=NOT_PLAYED) return;
+        const MoveBlocks &lastmove = board->get_const_lastmove();
+        assert(lastmove.player!=NOT_PLAYED);
+        if (lastmove.player==PLAYER_1) p2->start_playing(*board,lastmove,this);
+        if (lastmove.player==PLAYER_2) p1->start_playing(*board,lastmove,this);
+    }
+    void board_modified() {
+        if (not observer or not board) return;
+        observer->board_updated(*board);
+    }
+
+    Player *p1;
+    Player *p2;
+    BoardBlocks *board;
+    Token winner;
+};
+
+static Referee *hanswer = NULL;
+
+void pixel_callback(Button *abstract) {
+    assert(hanswer);
+    const Token player = other_player(hanswer->get_const_board().get_const_lastmove().player);
+    Pixel *but = dynamic_cast<Pixel*>(abstract);
+    assert(but);
+    MoveBlocks move(player,but->get_color());
+    MessageManager::get()->add_message("human played");
+    hanswer->submit_move(&move);
+}
+
+class MainApp : public Listener, public Player, public Observer {
 public:
     static const float SCORESEPARATION = 40;
-    MainApp() : nw(22), nh(14), spacing(35), board(NULL) { 
+    MainApp() : spacing(35) { 
         endsfx = SoundManager::get()->get_sfx("boom");
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
@@ -77,13 +173,17 @@ public:
         status->x = SdlManager::get()->width/2.;
         status->y = 100;
 
-        pixels = new Array(nw,nh);
-        GuiManager::get()->add_widget(pixels,"pixels");
+        referee.observer = this;
+        hanswer = &referee;
 
-        for (int row=0; row<nh; row++) for (int column=0; column<nw; column++) {
-            Pixel *pixel = new Pixel(row,column);
-            pixel->sprite->y = SdlManager::get()->height/2. + (pixel->sprite->h+5)*(row-(nh-1)/2.);
-            pixel->sprite->x = SdlManager::get()->width/2.  + (pixel->sprite->w+5)*(column-(nw-1)/2.);
+        pixels = new Array(referee.nw,referee.nh);
+        GuiManager::get()->add_widget(pixels,"pixels");
+        pixels->enabled = false;
+
+        for (int row=0; row<referee.nh; row++) for (int column=0; column<referee.nw; column++) {
+            Pixel *pixel = new Pixel;
+            pixel->sprite->y = SdlManager::get()->height/2. + (pixel->sprite->h+5)*(row-(referee.nh-1)/2.);
+            pixel->sprite->x = SdlManager::get()->width/2.  + (pixel->sprite->w+5)*(column-(referee.nw-1)/2.);
             pixels->add_widget(pixel,row,column);
         }
 
@@ -95,6 +195,18 @@ public:
         delete p2score;
         delete status;
         delete endsfx;
+    }
+    virtual void start_playing(const BoardBlocks &board, const MoveBlocks &oppmove,Submittable *answer) {
+        assert(answer==hanswer);
+        if (sync_board(board,true)) MessageManager::get()->add_message("human playing");
+        else {
+            MessageManager::get()->add_message("no possible move");
+            answer->submit_move(NULL);
+        }
+    }
+    virtual void board_updated(const BoardBlocks &board) {
+        MessageManager::get()->add_message("updating board");
+        sync_board(board,false);
     }
 protected:
     //Pixel*  get_hoovered_pixel(float x,float y) {
@@ -127,49 +239,48 @@ protected:
         return true;
     }
     virtual void register_self() {
-        assert(not board);
-        board = new BoardBlocks(nw,nh,true);
-        sync_board();
+        referee.reset(this,this);
         pixels->enabled = true;
     }
     virtual void unregister_self() {
-        delete board;
-        board = NULL;
         pixels->enabled = false;
     }
-    void sync_board() {
-        assert(board);
-        for (int row=0; row<nh; row++) for (int column=0; column<nw; column++) {
-            const BoardBlocks::TokenBlocks &token = board->get_const_token(row,column);
+    bool sync_board(const BoardBlocks &board, bool update_playable) {
+        bool any = false;
+        for (int row=0; row<referee.nh; row++) for (int column=0; column<referee.nw; column++) {
+            const BoardBlocks::TokenBlocks &token = board.get_const_token(row,column);
             Pixel *pixel = static_cast<Pixel*>(pixels->get_widget(row,column));
             assert(pixel);
             int state = token.color;
             if (token.player==PLAYER_1)  state += 6;
             if (token.player==PLAYER_2)  state += 12;
-            if (row==nh-1 and column==0) state = 18;
-            if (row==0 and column==nw-1) state = 19;
-            pixel->update(state,token.playable);
+            if (row==referee.nh-1 and column==0) state = 18;
+            if (row==0 and column==referee.nw-1) state = 19;
+            any |= token.playable;
+            pixel->update(state,token.playable and update_playable,token.color);
         }
 
         {
         std::stringstream ss;
-        ss<<board->get_p1score();
+        ss<<board.get_p1score();
         p1score->update(ss.str());
         } {
         std::stringstream ss;
-        ss<<board->get_p2score();
+        ss<<board.get_p2score();
         p2score->update(ss.str());
+        } {
+        status->update(referee.get_status());
         }
+
+        return any and update_playable;
     }
-    const int nw;
-    const int nh;
     const float spacing;
 
+    Referee referee;
     Text *p1score;
     Text *p2score;
     Text *status;
     Sfx *endsfx;
-    BoardBlocks *board;
     Array *pixels;
 };
 

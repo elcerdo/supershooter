@@ -22,7 +22,6 @@ protected:
 };
 
 class BoardBlocks : public Board {
-friend class QBoardBlocks;
 public:
 	BoardBlocks(Size width,Size height,bool init);
 	virtual ~BoardBlocks();
@@ -47,6 +46,7 @@ public:
     };
 
     const TokenBlocks& get_const_token(Size i, Size j) const;
+    const MoveBlocks& get_const_lastmove() const;
     int get_p1score() const;
     int get_p2score() const;
 protected:
