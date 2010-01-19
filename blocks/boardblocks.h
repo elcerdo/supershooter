@@ -46,7 +46,8 @@ public:
     };
 
     const TokenBlocks& get_const_token(Size i, Size j) const;
-    const MoveBlocks& get_const_lastmove() const;
+    const MoveBlocks* get_const_lastmove() const;
+    Token get_current_player() const;
     int get_p1score() const;
     int get_p2score() const;
 protected:
@@ -64,7 +65,7 @@ private:
 
     TokenBlocks& get_token(Size i,Size j);
 
-    MoveBlocks lastmove;
+    MoveBlocks *lastmove;
 
 	const Size width;
 	const Size height;

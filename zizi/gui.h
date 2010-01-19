@@ -39,10 +39,9 @@ public:
 
     virtual bool interact(float x, float y);
     virtual bool draw(float x,float y,float dt) const;
+    const int nw,nh,size;
 protected:
     Widget *&unflatten(int row,int column);
-
-    const int nw,nh,size;
     Widget **widgets;
 };
 

@@ -23,13 +23,17 @@ Node::~Node() {
 }
 
 Node * Node::advance_and_detach(const Move *move) {
+    assert(move);
 	assert(not father);
 	Node *new_root=NULL;
 	for (Nodes::iterator iter=children.begin();iter!=children.end();iter++) {
 		if ((*iter)->move->compare(*move)) {
 			new_root=*iter;
 			new_root->father=NULL;
-			this->children.erase(iter);
+            { //FUCK you bitch 2
+                Nodes::iterator itercopy(iter);
+                this->children.erase(itercopy);
+            }
 			break;
         }
 	}

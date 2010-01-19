@@ -13,4 +13,3 @@ target_link_libraries(zizi
     ${SDLMIXER_LIBRARY}
     ${SDLIMAGE_LIBRARY}
     ${OPENGL_gl_LIBRARY})
-

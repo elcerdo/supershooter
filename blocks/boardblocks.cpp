@@ -44,10 +44,6 @@ Move *MoveBlocks::deepcopy() const {
 	return copy;
 }
 
-const MoveBlocks& BoardBlocks::get_const_lastmove() const {
-    return lastmove;
-}
-
 bool MoveBlocks::compare (const Move& abstract_move) const {
     const MoveBlocks &move=dynamic_cast<const MoveBlocks&>(abstract_move);
 	return Move::compare(abstract_move) and color==move.color;
@@ -59,32 +55,34 @@ void BoardBlocks::TokenBlocks::print_char() const {
     //    return;
     //}
 
-    char c = ' ';
+    std::string c;
+    if (player==NOT_PLAYED) c = "█";
+    else c="■";
+
     switch (color) {
     case VIOLET:
-        c = 'v';
+        c = "\e[35m"+c+"\e[0m";
         break;
     case BLUE:
-        c = 'b';
+        c = "\e[34m"+c+"\e[0m";
         break;
     case ORANGE:
-        c = 'o';
+        c = "\e[36m"+c+"\e[0m"; //This is actually Cyan
         break;
     case GREEN:
-        c = 'g';
+        c = "\e[32m"+c+"\e[0m";
         break;
     case YELLOW:
-        c = 'y';
+        c = "\e[33m"+c+"\e[0m";
         break;
     case RED:
-        c = 'r';
+        c = "\e[31m"+c+"\e[0m";
         break;
     case NONE:
-        c = 'n';
+        c = 'N';
         break;
     }
 
-    if (player!=NOT_PLAYED) c = toupper(c);
     cout<<c;
 }
 
@@ -92,7 +90,7 @@ void BoardBlocks::TokenBlocks::print() const {
     cout<<"i="<<i<<" j="<<j<<" color="<<color<<" player="<<player;
 }
 
-BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(PLAYER_2,NONE), width(width), height(height), size(width*height), p1score(1), p2score(1) {
+BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(NULL), width(width), height(height), size(width*height), p1score(1), p2score(1) {
 	//allocate flat
 	flat=new TokenBlocks[size];
 
@@ -127,8 +125,20 @@ BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(PLAYER_2,N
     update_playable();
 }
 
+int BoardBlocks::get_p1score() const { return p1score; }
+int BoardBlocks::get_p2score() const { return p2score; }
+Token BoardBlocks::get_current_player() const {
+    if (not lastmove) return PLAYER_1;
+    else return other_player(lastmove->player);
+}
+
 void BoardBlocks::update_playable() {
-    Token player = other_player(lastmove.player);
+    Token player = PLAYER_1;
+    Color color  = NONE;
+    if (lastmove) {
+        player = other_player(lastmove->player);
+        color  = lastmove->color;
+    }
 
     for (int k=0; k<size; k++) { flat[k].playable = false; }
 
@@ -143,7 +153,7 @@ void BoardBlocks::update_playable() {
         if (column<width-1) neighbors.push_back(&get_token(row,column+1));
         for (Tokens::iterator i=neighbors.begin(); i!=neighbors.end(); i++) {
             TokenBlocks *current = *i;
-            if (current->color!=lastmove.color and current->player==NOT_PLAYED) current->playable=true;
+            if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
         }
     }
 }
@@ -153,24 +163,25 @@ BoardBlocks::TokenBlocks& BoardBlocks::get_token(Size i, Size j) {
     return flat[j*height+i];
 }
 
-int BoardBlocks::get_p1score() const { return p1score; }
-int BoardBlocks::get_p2score() const { return p2score; }
-
 const BoardBlocks::TokenBlocks& BoardBlocks::get_const_token(Size i, Size j) const {
     assert(i>=0 and i<height and j>=0 and j<width);
     return flat[j*height+i];
 }
 
+const MoveBlocks* BoardBlocks::get_const_lastmove() const {
+    return lastmove;
+}
+
 BoardBlocks::~BoardBlocks() {
 	delete [] flat;
+    if (lastmove) delete lastmove;
 }
 
 Board *BoardBlocks::deepcopy() const {
     BoardBlocks *copy=new BoardBlocks(width,height,false);
 
     //copy last move and played_count
-    copy->lastmove.player = lastmove.player;
-    copy->lastmove.color  = lastmove.color;
+    if (lastmove) copy->lastmove = static_cast<MoveBlocks*>(lastmove->deepcopy());
 
 	//copy flat
     for (int k=0; k<size; k++) {
@@ -256,7 +267,10 @@ bool BoardBlocks::is_move_valid(const Move &abstract_move) const {
 }
 
 bool BoardBlocks::is_move_valid(const MoveBlocks &move) const {
-    if (move.color==NONE or move.player!=other_player(lastmove.player)) return false;
+    Token player = PLAYER_1;
+    if (lastmove) player = other_player(lastmove->player);
+
+    if (move.color==NONE or move.player!=player) return false;
     for (int k=0; k<size; k++) {
         const TokenBlocks &current = flat[k];
         if (current.playable and current.color==move.color) return true;
@@ -340,12 +354,12 @@ void BoardBlocks::play_move(const Move &abstract_move) {
         if (current.player==move.player) current.color = move.color;
     }
 
-    lastmove.color  = move.color;
-	lastmove.player = move.player;
+    if (lastmove) delete lastmove;
+    lastmove = static_cast<MoveBlocks*>(move.deepcopy());
     //cout<<"END OF PLAY MOVE"<<endl;
     update_playable();
 
-    if (lastmove.player==PLAYER_2) {
+    if (lastmove->player==PLAYER_2) {
         p1score = 0;
         p2score = 0;
 

@@ -4,6 +4,7 @@
 #include "sound.h"
 #include "gui.h"
 #include "boardblocks.h"
+#include "uct.h"
 #include <sstream>
 using std::cerr;
 using std::endl;
@@ -60,22 +61,23 @@ private:
 
 class Submittable {
 public:
-    virtual void submit_move(const MoveBlocks *move) = 0;
+    virtual Token get_current_player() const = 0;
+    virtual void submit_move(const Move *move) = 0;
 };
 
 class Player {
 public:
-    virtual void start_playing(const BoardBlocks &board, const MoveBlocks &oppmove,Submittable *answer) = 0;
+    virtual void start_playing(const Board *board, const Move *oppmove, Submittable *answer) = 0;
 };
 
 class Observer {
 public:
-    virtual void board_updated(const BoardBlocks &board) = 0;
+    virtual void board_updated(const Board *board) = 0;
 };
 
 class Referee : public Submittable {
 public:
-    Referee(int nw=22, int nh=14) : nw(nw), nh(nh), board(NULL), p1(NULL), p2(NULL), observer(NULL), winner(NOT_PLAYED) {}
+    Referee(int nw=22, int nh=14) : nw(nw), nh(nh), board(NULL), p1(NULL), p2(NULL), observer(NULL), winner(NOT_PLAYED) { }
     ~Referee() {
         if (board) delete board;
     }
@@ -102,19 +104,18 @@ public:
         if (winner==PLAYER_1) return "p1 win";
         if (winner==PLAYER_2) return "p2 win";
 
-        const MoveBlocks &lastmove = board->get_const_lastmove();
-        if (lastmove.player==PLAYER_1) return "p2 playing";
-        if (lastmove.player==PLAYER_2) return "p1 playing";
+        Token player = board->get_current_player();
+        if (player==PLAYER_1) return "p1 playing";
+        if (player==PLAYER_2) return "p2 playing";
 
         return "undefined";
     }
-    virtual void submit_move(const MoveBlocks *move) {
-        if (move) {
-            assert(winner == NOT_PLAYED);
-            const MoveBlocks &lastmove = board->get_const_lastmove();
-            assert(lastmove.player==other_player(move->player));
-            board->play_move(*move);
-        }
+    virtual Token get_current_player() const {
+        return get_const_board().get_current_player();
+    }
+
+    virtual void submit_move(const Move *move) {
+        if (move) board->play_move(*move);
 
         winner = board->check_for_win(); 
         board_modified();
@@ -127,14 +128,14 @@ public:
 protected:
     void banco() {
         if (winner!=NOT_PLAYED) return;
-        const MoveBlocks &lastmove = board->get_const_lastmove();
-        assert(lastmove.player!=NOT_PLAYED);
-        if (lastmove.player==PLAYER_1) p2->start_playing(*board,lastmove,this);
-        if (lastmove.player==PLAYER_2) p1->start_playing(*board,lastmove,this);
+
+        Token player = board->get_current_player();
+        if (player==PLAYER_1) p1->start_playing(board,board->get_const_lastmove(),this);
+        if (player==PLAYER_2) p2->start_playing(board,board->get_const_lastmove(),this);
     }
     void board_modified() {
         if (not observer or not board) return;
-        observer->board_updated(*board);
+        observer->board_updated(board);
     }
 
     Player *p1;
@@ -143,14 +144,126 @@ protected:
     Token winner;
 };
 
-static Referee *hanswer = NULL;
+class Bot : public Player {
+public:
+    Bot(Token player,float max_sec, float uct_constant) : player(player), max_sec(max_sec), uct_constant(uct_constant), answer(NULL), oppmove(NULL), board(NULL) {
+        assert(player!=NOT_PLAYED);
+
+        pthread_mutex_init(&init_mutex,NULL);
+        pthread_cond_init(&init_complete,NULL);
+        pthread_create(&thread,NULL,&Bot::main_loop,this);
+    }
+    ~Bot() {
+        pthread_cancel(thread);
+        pthread_join(thread,NULL);
+        pthread_cond_destroy(&init_complete);
+        pthread_mutex_destroy(&init_mutex);
+    }
+    virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
+        assert(board);
+        pthread_mutex_lock(&init_mutex);
+        this->board   = board;
+        this->oppmove = oppmove;
+        this->answer  = answer;
+        pthread_cond_broadcast(&init_complete);
+        cout<<"submitted"<<endl;
+        pthread_mutex_unlock(&init_mutex);
+    }
+protected:
+    static void *main_loop(void *abstract) {
+        cout<<"starting thread"<<endl;
+        Bot *bot = static_cast<Bot*>(abstract);
+        const float max_sec = bot->max_sec;
+        const Token player  = bot->player;
+        Node *root = new Node(bot->uct_constant);
+
+        while (true) {
+            const Move *move = NULL;
+
+            //wait for local data
+            pthread_mutex_lock(&bot->init_mutex);
+            cout<<"waiting for data"<<endl;
+            pthread_cond_wait(&bot->init_complete,&bot->init_mutex);
+            const Board  *local_board = bot->board->deepcopy();
+            const Move *local_oppmove = NULL;
+            if (bot->oppmove) local_oppmove = bot->oppmove->deepcopy();
+            Submittable *local_answer = bot->answer;
+            assert(local_board);
+            assert(local_answer);
+            cout<<"copied local data"<<endl;
+            pthread_mutex_unlock(&bot->init_mutex);
+
+            //reuse last simulations if possibles
+            if (local_oppmove) root=root->advance_and_detach(local_oppmove);
+            Count saved_simulations=root->get_nb();
+        
+            clock_t start=clock(),end=clock();
+            int k = 0;
+            while (root->get_mode()==NORMAL and end-start<max_sec*CLOCKS_PER_SEC) {
+                Board *copy=local_board->deepcopy();
+                Token winner=root->play_random_game(copy,player);
+                delete copy;
+                end=clock();
+                k++;
+            }
+
+            const Node *best_child=root->get_best_child();
+            if (best_child) move = best_child->get_move();
+
+            //simulation report
+            std::cout<<"simulated "<<k<<" games ("<<saved_simulations<<" saved) in "<<float(end-start)/CLOCKS_PER_SEC<<"s"<<std::endl;
+
+            //move report
+            std::cout<<"playing ";
+            switch (root->get_mode()) {
+            case NORMAL:
+                std::cout<<"normal "<<best_child->get_winning_probability()<<" ";
+                break;
+            case WINNER:
+                std::cout<<"loosing ";
+                break;
+            case LOOSER:
+                std::cout<<"winning ";
+                break;
+            }
+            std::cout<<"move ";
+            if (move) move->print();
+            else cout<<"NULL";
+            std::cout<<std::endl;
+
+            //play best_move
+            if (move) root=root->advance_and_detach(move);
+            local_answer->submit_move(move);
+            cout<<"submitted move"<<endl;
+
+            //delete stuff
+            delete local_board;
+            delete local_oppmove;
+        }
+
+        delete root;
+        return NULL;
+    }
+
+    pthread_t thread;
+    pthread_mutex_t init_mutex;
+    pthread_cond_t  init_complete;
+    const Token player;
+    const float max_sec;
+    const float uct_constant;
+    const Board *board;
+    const Move  *oppmove;
+    Submittable *answer;
+    
+};
+
+static Submittable *hanswer = NULL;
 
 void pixel_callback(Button *abstract) {
     assert(hanswer);
-    const Token player = other_player(hanswer->get_const_board().get_const_lastmove().player);
     Pixel *but = dynamic_cast<Pixel*>(abstract);
     assert(but);
-    MoveBlocks move(player,but->get_color());
+    MoveBlocks move(hanswer->get_current_player(),but->get_color());
     MessageManager::get()->add_message("human played");
     hanswer->submit_move(&move);
 }
@@ -158,7 +271,7 @@ void pixel_callback(Button *abstract) {
 class MainApp : public Listener, public Player, public Observer {
 public:
     static const float SCORESEPARATION = 40;
-    MainApp() : spacing(35) { 
+    MainApp() : spacing(35), bot(NULL) { 
         endsfx = SoundManager::get()->get_sfx("boom");
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
@@ -196,17 +309,18 @@ public:
         delete status;
         delete endsfx;
     }
-    virtual void start_playing(const BoardBlocks &board, const MoveBlocks &oppmove,Submittable *answer) {
+    virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
         assert(answer==hanswer);
-        if (sync_board(board,true)) MessageManager::get()->add_message("human playing");
+        //if (oppmove and oppmove->player==PLAYER_1) bot->start_playing(board,oppmove,answer);
+        if (sync_board(static_cast<const BoardBlocks*>(board),true)) MessageManager::get()->add_message("human playing");
         else {
             MessageManager::get()->add_message("no possible move");
             answer->submit_move(NULL);
         }
     }
-    virtual void board_updated(const BoardBlocks &board) {
+    virtual void board_updated(const Board *board) {
         MessageManager::get()->add_message("updating board");
-        sync_board(board,false);
+        sync_board(static_cast<const BoardBlocks*>(board),false);
     }
 protected:
     //Pixel*  get_hoovered_pixel(float x,float y) {
@@ -239,16 +353,19 @@ protected:
         return true;
     }
     virtual void register_self() {
-        referee.reset(this,this);
+        bot = new Bot(PLAYER_2,.8,.2);
+        referee.reset(this,bot);
         pixels->enabled = true;
     }
     virtual void unregister_self() {
         pixels->enabled = false;
+        delete bot;
+        bot = NULL;
     }
-    bool sync_board(const BoardBlocks &board, bool update_playable) {
+    bool sync_board(const BoardBlocks *board, bool update_playable) {
         bool any = false;
         for (int row=0; row<referee.nh; row++) for (int column=0; column<referee.nw; column++) {
-            const BoardBlocks::TokenBlocks &token = board.get_const_token(row,column);
+            const BoardBlocks::TokenBlocks &token = board->get_const_token(row,column);
             Pixel *pixel = static_cast<Pixel*>(pixels->get_widget(row,column));
             assert(pixel);
             int state = token.color;
@@ -262,11 +379,11 @@ protected:
 
         {
         std::stringstream ss;
-        ss<<board.get_p1score();
+        ss<<board->get_p1score();
         p1score->update(ss.str());
         } {
         std::stringstream ss;
-        ss<<board.get_p2score();
+        ss<<board->get_p2score();
         p2score->update(ss.str());
         } {
         status->update(referee.get_status());
@@ -282,6 +399,7 @@ protected:
     Text *status;
     Sfx *endsfx;
     Array *pixels;
+    Bot *bot;
 };
 
 int main() {

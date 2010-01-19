@@ -195,7 +195,7 @@ Widget *GuiManager::get_widget(const std::string &name) {
     return maingroup->get_widget(name);
 }
 
-bool GuiManager::key_down(SDLKey key) { }
+bool GuiManager::key_down(SDLKey key) { return true; }
 
 bool GuiManager::mouse_down(int button,float x,float y) {
     if (maingroup->interact(x,y)) click->play_once();
