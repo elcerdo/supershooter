@@ -18,7 +18,7 @@ Fps::Fps() : frame(0), update_t(0),display(false) {
 Fps::~Fps() { delete text; }
 
 bool Fps::key_down(SDLKey key) {
-    if (key==SDLK_f) display=not display;
+    if (key==SDLK_d) display=not display;
     return true;
 }
 

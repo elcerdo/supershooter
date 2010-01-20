@@ -78,8 +78,10 @@ protected:
     Sprite *sprite;
 };
 
+static const float taudirection = .2;
+static const float drealdirectionmax = 4e-3;
+
 struct Wheel {
-    static const float taudirection = .2;
     Wheel(float x,float y,Sprite *parent,float drift=50,float brake=10e4,float forward=2e5,float reverse=-10e4) : x(x), y(y), brake(brake), drift(drift), state(FREE), forward(forward), reverse(reverse), direction(0), realdirection(0) {
         sprite = dynamic_cast<StateSprite*>(parent->create_child("onoff"));
         sprite->x = x;
@@ -96,8 +98,8 @@ struct Wheel {
     }
     void add_force(const dBodyID &body,float dt) {
         float drealdirection = dt/taudirection * (realdirection-direction);
-        if (drealdirection > 2e-3) drealdirection = 2e-3;
-        if (drealdirection < -2e-3) drealdirection = -2e-3;
+        if (drealdirection > drealdirectionmax)  drealdirection = drealdirectionmax;
+        if (drealdirection < -drealdirectionmax) drealdirection = -drealdirectionmax;
         realdirection -= drealdirection;
 
         const dReal *vel = dBodyGetLinearVel(body);
@@ -374,7 +376,7 @@ protected:
         if (not ab or not bb) {
             for (int k=0; k<MAXCONTACT; k++) {
                 contacts[k].surface.mode = dContactBounce;
-                contacts[k].surface.mu = dInfinity;
+                contacts[k].surface.mu = 24;
                 contacts[k].surface.bounce = .1;
             }
         } else {
