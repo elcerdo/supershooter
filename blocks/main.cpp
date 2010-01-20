@@ -148,7 +148,6 @@ class Bot : public Player {
 public:
     Bot(Token player,float max_sec, float uct_constant) : player(player), max_sec(max_sec), uct_constant(uct_constant), answer(NULL), oppmove(NULL), board(NULL) {
         assert(player!=NOT_PLAYED);
-
         pthread_mutex_init(&init_mutex,NULL);
         pthread_cond_init(&init_complete,NULL);
         pthread_create(&thread,NULL,&Bot::main_loop,this);
@@ -160,41 +159,56 @@ public:
         pthread_mutex_destroy(&init_mutex);
     }
     virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
-        assert(board);
-        pthread_mutex_lock(&init_mutex);
-        this->board   = board;
-        this->oppmove = oppmove;
-        this->answer  = answer;
-        pthread_cond_broadcast(&init_complete);
-        cout<<"submitted"<<endl;
-        pthread_mutex_unlock(&init_mutex);
+        assert(board and answer);
+        {
+            pthread_mutex_lock(&init_mutex);
+            this->board   = board;
+            this->oppmove = oppmove;
+            this->answer  = answer;
+            pthread_cond_broadcast(&init_complete);
+            cout<<"submitted"<<endl;
+            pthread_mutex_unlock(&init_mutex);
+        }
     }
 protected:
     static void *main_loop(void *abstract) {
-        cout<<"starting thread"<<endl;
+        cout<<"thread started"<<endl;
         Bot *bot = static_cast<Bot*>(abstract);
         const float max_sec = bot->max_sec;
         const Token player  = bot->player;
+
         Node *root = new Node(bot->uct_constant);
 
         while (true) {
             const Move *move = NULL;
-
-            //wait for local data
-            pthread_mutex_lock(&bot->init_mutex);
-            cout<<"waiting for data"<<endl;
-            pthread_cond_wait(&bot->init_complete,&bot->init_mutex);
-            const Board  *local_board = bot->board->deepcopy();
+            Submittable *local_answer = NULL;
             const Move *local_oppmove = NULL;
-            if (bot->oppmove) local_oppmove = bot->oppmove->deepcopy();
-            Submittable *local_answer = bot->answer;
+            const Board *local_board = NULL;
+
+            { //wait for local data
+                pthread_mutex_lock(&bot->init_mutex);
+
+                cout<<"waiting for data"<<endl;
+                pthread_cleanup_push(cleanup_root,root);
+                pthread_cond_wait(&bot->init_complete,&bot->init_mutex); //also cancel point
+                pthread_cleanup_pop(0);
+
+                local_answer = bot->answer;
+                local_board = bot->board->deepcopy();
+                if (bot->oppmove) local_oppmove = bot->oppmove->deepcopy();
+                cout<<"copied local data"<<endl;
+                pthread_mutex_unlock(&bot->init_mutex);
+            }
+
             assert(local_board);
             assert(local_answer);
-            cout<<"copied local data"<<endl;
-            pthread_mutex_unlock(&bot->init_mutex);
+            cout<<"--------------------------------------"<<endl;
 
             //reuse last simulations if possibles
-            if (local_oppmove) root=root->advance_and_detach(local_oppmove);
+            if (local_oppmove) {
+                root = root->advance_and_detach(local_oppmove);
+                delete local_oppmove;
+            }
             Count saved_simulations=root->get_nb();
         
             clock_t start=clock(),end=clock();
@@ -232,17 +246,26 @@ protected:
             std::cout<<std::endl;
 
             //play best_move
-            if (move) root=root->advance_and_detach(move);
+            if (move) {
+                root=root->advance_and_detach(move);
+            }
             local_answer->submit_move(move);
             cout<<"submitted move"<<endl;
 
             //delete stuff
             delete local_board;
-            delete local_oppmove;
         }
 
         delete root;
+
+        cout<<"return from thread"<<endl;
         return NULL;
+    }
+
+    static void cleanup_root(void *abstract) {
+        cout<<"cleaning up root"<<endl;
+        Node *root = static_cast<Node*>(abstract);
+        delete root;
     }
 
     pthread_t thread;
@@ -405,9 +428,10 @@ protected:
 int main() {
     try {
         srand(time(NULL));
+        cout.precision(2);
 
         SdlManager::init();
-        SdlManager::get()->set_background_color(0,0,0);
+        SdlManager::get()->set_background_color(0,0,.05);
 
         SoundManager::init();
         if (not SoundManager::get()->load_directory("data"))
