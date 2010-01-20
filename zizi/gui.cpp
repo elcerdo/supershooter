@@ -100,6 +100,7 @@ bool Array::draw(float x,float y,float dt) const {
 
 Widget *&Array::unflatten(int row,int column) { return widgets[row+column*nh]; }
 
+Button::Button(Sprite *sprite, void (*clicked)(Button*)) : Widget(), sprite(sprite), clicked(clicked) { assert(sprite); }
 Button::Button(const std::string &sprname, void (*clicked)(Button*)) : Widget(), sprite(SpriteManager::get()->get_sprite(sprname)), clicked(clicked) { assert(sprite); }
 Button::~Button() { delete sprite; }
 

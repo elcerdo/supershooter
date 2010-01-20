@@ -94,6 +94,9 @@ public:
 
         banco();
     }
+    bool game_ended() const {
+        return winner!=NOT_PLAYED;
+    }
     const BoardBlocks &get_const_board() const {
         assert(board);
         return *board;
@@ -291,10 +294,10 @@ void pixel_callback(Button *abstract) {
     hanswer->submit_move(&move);
 }
 
-class MainApp : public Listener, public Player, public Observer {
+class GameApp : public Listener, public Player, public Observer {
 public:
     static const float SCORESEPARATION = 40;
-    MainApp() : spacing(35), bot(NULL) { 
+    GameApp() : spacing(35), bot1(NULL), bot2(NULL), p1human(true), p2human(true) { 
         endsfx = SoundManager::get()->get_sfx("boom");
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
@@ -322,11 +325,8 @@ public:
             pixel->sprite->x = SdlManager::get()->width/2.  + (pixel->sprite->w+5)*(column-(referee.nw-1)/2.);
             pixels->add_widget(pixel,row,column);
         }
-
-        MessageManager::get()->add_message("init");
     }
-    ~MainApp() {
-        unregister_self();
+    ~GameApp() {
         delete p1score;
         delete p2score;
         delete status;
@@ -334,7 +334,6 @@ public:
     }
     virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
         assert(answer==hanswer);
-        //if (oppmove and oppmove->player==PLAYER_1) bot->start_playing(board,oppmove,answer);
         if (sync_board(static_cast<const BoardBlocks*>(board),true)) MessageManager::get()->add_message("human playing");
         else {
             MessageManager::get()->add_message("no possible move");
@@ -345,45 +344,47 @@ public:
         MessageManager::get()->add_message("updating board");
         sync_board(static_cast<const BoardBlocks*>(board),false);
     }
+
+    bool game_ended() { return referee.game_ended(); }
+    bool p1human;
+    bool p2human;
 protected:
-    //Pixel*  get_hoovered_pixel(float x,float y) {
-    //    const float cj = (2*x-SdlManager::get()->width+spacing*nw)/(2*spacing);
-    //    const float ci = (2*y-SdlManager::get()->height+spacing*nh)/(2*spacing);
-    //    if (ci>=0 and cj>=0 and cj<nw and ci<nh) { return get_pixel(ci,cj); }
-    //    else { return NULL; }
-    //}
-    virtual bool key_down(SDLKey key) {
-        switch (key) {
-        case SDLK_f:
-            SdlManager::get()->toggle_fullscreen();
-            break;
-        case SDLK_ESCAPE:
-            return false;
-            break;
-        default:
-            break;
-        }
-        return true;
-    }
-    virtual bool mouse_down(int button,float x,float y) {
-        return true;
-    }
     virtual bool frame_entered(float t,float dt) {
         p1score->draw(dt);
         p2score->draw(dt);
         status->draw(dt);
-
         return true;
     }
     virtual void register_self() {
-        bot = new Bot(PLAYER_2,.8,.2);
-        referee.reset(this,bot);
+        MessageManager::get()->add_message("init");
+        assert(not bot1 or not bot2);
+        Player *p1 = this;
+        Player *p2 = this;
+        if (not p1human) {
+            bot1 = new Bot(PLAYER_1,.8,.2);
+            p1 = bot1;
+        }
+        if (not p2human) {
+            bot2 = new Bot(PLAYER_2,.8,.2);
+            p2 = bot2;
+        }
+        referee.reset(p1,p2);
         pixels->enabled = true;
     }
     virtual void unregister_self() {
+        cout<<"unregister"<<endl;
         pixels->enabled = false;
-        delete bot;
-        bot = NULL;
+
+        if (not p1human) {
+            assert(bot1);
+            delete bot1;
+            bot1 = NULL;
+        }
+        if (not p2human) {
+            assert(bot2);
+            delete bot2;
+            bot2 = NULL;
+        }
     }
     bool sync_board(const BoardBlocks *board, bool update_playable) {
         bool any = false;
@@ -422,7 +423,53 @@ protected:
     Text *status;
     Sfx *endsfx;
     Array *pixels;
-    Bot *bot;
+    Bot *bot1;
+    Bot *bot2;
+};
+
+class MainApp : public Listener {
+public:
+    MainApp() {
+        group = new Group;
+        GuiManager::get()->add_widget(group,"mainapp");
+
+        {
+        Button *but = new Button(SpriteManager::get()->get_text("human vs human","font01",Text::LEFT),&human_human_callback);
+        but->sprite->x = 100;
+        but->sprite->y = 100;
+        group->add_widget(but,"hhbut");
+        }
+    }
+protected:
+    virtual bool key_down(SDLKey key) {
+        switch (key) {
+        case SDLK_f:
+            SdlManager::get()->toggle_fullscreen();
+            break;
+        case SDLK_ESCAPE:
+            return false;
+            break;
+        default:
+            break;
+        }
+        return true;
+    }
+    virtual bool mouse_down(int button,float x,float y) {
+        if (button==1 and game.game_ended()) {
+            SdlManager::get()->unregister_listener(&game);
+        }
+        return true;
+    }
+    virtual bool frame_entered(float t,float dt) {
+        return true;
+    }
+
+    GameApp game;
+    Group *group;
+private:
+    static void human_human_callback(Button *but) {
+        cout<<"h vs h"<<endl;
+    }
 };
 
 int main() {

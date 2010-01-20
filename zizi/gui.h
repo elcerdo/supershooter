@@ -47,6 +47,7 @@ protected:
 
 class Button : public Widget {
 public:
+    Button(Sprite *sprite, void (*clicked)(Button*));
     Button(const std::string &sprname, void (*clicked)(Button*));
     virtual ~Button();
 
