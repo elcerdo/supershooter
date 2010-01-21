@@ -2,72 +2,276 @@
 #include "utils.h"
 #include "message.h"
 #include "sound.h"
-#include <cassert>
-#include <set>
-#include <queue>
+#include "gui.h"
+#include "boardblocks.h"
+#include "uct.h"
+#include <sstream>
 using std::cerr;
-using std::cout;
 using std::endl;
-using std::make_pair;
+using std::cout;
 
-#define NCOLORS 6
-#define MAGNIFYFACTOR 1.2
-#define DEBUGMSG(format, ...) printf(format,##__VA_ARGS__)
-#define SCORESEPARATION 40
+void pixel_callback(Button *but); //forward
 
-struct Pixel {
-    Pixel(float x,float y,unsigned int state) : magnified(false), playable(false), inqueue(false), left(NULL), right(NULL), top(NULL), bottom(NULL) {
-        sprite = dynamic_cast<StateSprite*>(SpriteManager::get()->get_sprite("blocks"));
-        assert(sprite);
-        sprite->x = x;
-        sprite->y = y;
-        assert(state < sprite->nstate);
-        sprite->state = state;
+class Pixel : public Button {
+public:
+    static const float MAGNIFYFACTOR = 1.2;
+    Pixel() : Button("blocks",pixel_callback), magnifiable(false), color(NONE) {
+        casted = dynamic_cast<StateSprite*>(sprite);
+        assert(casted);
+
     }
-    ~Pixel() {
-        delete sprite;
+
+    virtual bool interact(float x, float y) {
+        bool valid = is_click_valid(x,y);
+        if (valid and magnifiable and clicked) {
+            clicked(this);
+            return true;
+        }
+        return false;
     }
-    void draw(float dt) {
-        if (magnified) {
+
+    virtual bool draw(float x,float y,float dt) const {
+        if (not enabled) return false;
+
+        if (magnifiable and is_click_valid(x,y)) {
             sprite->factorx *= MAGNIFYFACTOR;
             sprite->factory *= MAGNIFYFACTOR;
-        }
-        sprite->draw(dt);
-        if (magnified) {
+            sprite->draw(dt);
             sprite->factorx /= MAGNIFYFACTOR;
             sprite->factory /= MAGNIFYFACTOR;
-        }
+            return true;
+        } 
+
+        sprite->draw(dt);
+        return true;
     }
 
-    bool magnified;
-    bool playable;
-    bool inqueue;
-    Pixel *left;
-    Pixel *right;
-    Pixel *top;
-    Pixel *bottom;
-    StateSprite *sprite;
+    void update(int state,bool playable,Color color) {
+        magnifiable = playable;
+        casted->state = state;
+        this->color = color;
+    }
+
+    Color get_color() const { return color; }
+private:
+    Color color;
+    bool magnifiable;
+    StateSprite *casted;
 };
 
-typedef std::set<Pixel*> PixelsSet;
-typedef std::pair<int,Pixel*> Seed;
-
-struct SeedGreater {
-    bool operator()(const Seed &a, const Seed &b) { return a.first > b.first; }
-};
-
-typedef std::priority_queue<Seed,std::vector<Seed>,SeedGreater> SeedsQueue;
-
-class MainApp : public Listener {
+class Submittable {
 public:
-    MainApp() : nw(21), nh(14), size(nw*nh), spacing(35) { 
-        cursor = SpriteManager::get()->get_sprite("cursor");
-        cursor->cx = cursor->w/2.;
-        cursor->cy = cursor->h/2.;
-        cursor->z = 8;
+    virtual Token get_current_player() const = 0;
+    virtual void submit_move(const Move *move) = 0;
+};
 
-        click = SoundManager::get()->get_sfx("click");
+class Player {
+public:
+    virtual void start_playing(const Board *board, const Move *oppmove, Submittable *answer) = 0;
+};
 
+class Observer {
+public:
+    virtual void board_updated(const Board *board) = 0;
+};
+
+class Referee : public Submittable {
+public:
+    Referee(int nw=22, int nh=14) : nw(nw), nh(nh), board(NULL), p1(NULL), p2(NULL), observer(NULL), winner(NOT_PLAYED) { }
+    ~Referee() {
+        if (board) delete board;
+    }
+    void reset(Player *p1, Player *p2) {
+        assert(winner == NOT_PLAYED);
+        assert(not board);
+        assert(not this->p1 and p1);
+        assert(not this->p2 and p2);
+
+        this->p1 = p1;
+        this->p2 = p2;
+        this->board = new BoardBlocks(nw,nh,true);
+        board_modified();
+
+        banco();
+    }
+    const BoardBlocks &get_const_board() const {
+        assert(board);
+        return *board;
+    }
+    std::string get_status() const {
+        if (not board) return "uninitialized";
+
+        if (winner==PLAYER_1) return "p1 win";
+        if (winner==PLAYER_2) return "p2 win";
+
+        Token player = board->get_current_player();
+        if (player==PLAYER_1) return "p1 playing";
+        if (player==PLAYER_2) return "p2 playing";
+
+        return "undefined";
+    }
+    virtual Token get_current_player() const {
+        return get_const_board().get_current_player();
+    }
+
+    virtual void submit_move(const Move *move) {
+        if (move) board->play_move(*move);
+
+        winner = board->check_for_win(); 
+        board_modified();
+
+        banco();
+    }
+
+    Observer *observer;
+    const int nw,nh;
+protected:
+    void banco() {
+        if (winner!=NOT_PLAYED) return;
+
+        Token player = board->get_current_player();
+        if (player==PLAYER_1) p1->start_playing(board,board->get_const_lastmove(),this);
+        if (player==PLAYER_2) p2->start_playing(board,board->get_const_lastmove(),this);
+    }
+    void board_modified() {
+        if (not observer or not board) return;
+        observer->board_updated(board);
+    }
+
+    Player *p1;
+    Player *p2;
+    BoardBlocks *board;
+    Token winner;
+};
+
+class Bot : public Player {
+public:
+    Bot(Token player,float max_sec, float uct_constant) : player(player), max_sec(max_sec), uct_constant(uct_constant), answer(NULL), oppmove(NULL), board(NULL) {
+        assert(player!=NOT_PLAYED);
+
+        pthread_mutex_init(&init_mutex,NULL);
+        pthread_cond_init(&init_complete,NULL);
+        pthread_create(&thread,NULL,&Bot::main_loop,this);
+    }
+    ~Bot() {
+        pthread_cancel(thread);
+        pthread_join(thread,NULL);
+        pthread_cond_destroy(&init_complete);
+        pthread_mutex_destroy(&init_mutex);
+    }
+    virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
+        assert(board);
+        pthread_mutex_lock(&init_mutex);
+        this->board   = board;
+        this->oppmove = oppmove;
+        this->answer  = answer;
+        pthread_cond_broadcast(&init_complete);
+        cout<<"submitted"<<endl;
+        pthread_mutex_unlock(&init_mutex);
+    }
+protected:
+    static void *main_loop(void *abstract) {
+        cout<<"starting thread"<<endl;
+        Bot *bot = static_cast<Bot*>(abstract);
+        const float max_sec = bot->max_sec;
+        const Token player  = bot->player;
+        Node *root = new Node(bot->uct_constant);
+
+        while (true) {
+            const Move *move = NULL;
+
+            //wait for local data
+            pthread_mutex_lock(&bot->init_mutex);
+            cout<<"waiting for data"<<endl;
+            pthread_cond_wait(&bot->init_complete,&bot->init_mutex);
+            const Board  *local_board = bot->board->deepcopy();
+            const Move *local_oppmove = NULL;
+            if (bot->oppmove) local_oppmove = bot->oppmove->deepcopy();
+            Submittable *local_answer = bot->answer;
+            assert(local_board);
+            assert(local_answer);
+            cout<<"copied local data"<<endl;
+            pthread_mutex_unlock(&bot->init_mutex);
+
+            //reuse last simulations if possibles
+            if (local_oppmove) root=root->advance_and_detach(local_oppmove);
+            Count saved_simulations=root->get_nb();
+        
+            clock_t start=clock(),end=clock();
+            int k = 0;
+            while (root->get_mode()==NORMAL and end-start<max_sec*CLOCKS_PER_SEC) {
+                Board *copy=local_board->deepcopy();
+                Token winner=root->play_random_game(copy,player);
+                delete copy;
+                end=clock();
+                k++;
+            }
+
+            const Node *best_child=root->get_best_child();
+            if (best_child) move = best_child->get_move();
+
+            //simulation report
+            std::cout<<"simulated "<<k<<" games ("<<saved_simulations<<" saved) in "<<float(end-start)/CLOCKS_PER_SEC<<"s"<<std::endl;
+
+            //move report
+            std::cout<<"playing ";
+            switch (root->get_mode()) {
+            case NORMAL:
+                std::cout<<"normal "<<best_child->get_winning_probability()<<" ";
+                break;
+            case WINNER:
+                std::cout<<"loosing ";
+                break;
+            case LOOSER:
+                std::cout<<"winning ";
+                break;
+            }
+            std::cout<<"move ";
+            if (move) move->print();
+            else cout<<"NULL";
+            std::cout<<std::endl;
+
+            //play best_move
+            if (move) root=root->advance_and_detach(move);
+            local_answer->submit_move(move);
+            cout<<"submitted move"<<endl;
+
+            //delete stuff
+            delete local_board;
+            delete local_oppmove;
+        }
+
+        delete root;
+        return NULL;
+    }
+
+    pthread_t thread;
+    pthread_mutex_t init_mutex;
+    pthread_cond_t  init_complete;
+    const Token player;
+    const float max_sec;
+    const float uct_constant;
+    const Board *board;
+    const Move  *oppmove;
+    Submittable *answer;
+    
+};
+
+static Submittable *hanswer = NULL;
+
+void pixel_callback(Button *abstract) {
+    assert(hanswer);
+    Pixel *but = dynamic_cast<Pixel*>(abstract);
+    assert(but);
+    MoveBlocks move(hanswer->get_current_player(),but->get_color());
+    MessageManager::get()->add_message("human played");
+    hanswer->submit_move(&move);
+}
+
+class MainApp : public Listener, public Player, public Observer {
+public:
+    static const float SCORESEPARATION = 40;
+    MainApp() : spacing(35), bot(NULL) { 
         endsfx = SoundManager::get()->get_sfx("boom");
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
@@ -82,202 +286,49 @@ public:
         status->x = SdlManager::get()->width/2.;
         status->y = 100;
 
-        pixels = new Pixel*[size];
-        const float cx = (SdlManager::get()->width-spacing*(nw-1))/2.;
-        const float cy = (SdlManager::get()->height-spacing*(nh-1))/2.;
-        for (int i=0; i<nh; i++) for (int j=0; j<nw; j++) {
-            get_pixel(i,j) = new Pixel(cx+spacing*j,cy+spacing*i,rand()%NCOLORS);
-        }
-        for (int i=0; i<nh; i++) for (int j=0; j<nw; j++) {
-            Pixel *current = get_pixel(i,j);
-            if (i != 0)    current->top    = get_pixel(i-1,j);
-            if (i != nh-1) current->bottom = get_pixel(i+1,j);
-            if (j != 0)    current->left   = get_pixel(i,j-1);
-            if (j != nw-1) current->right  = get_pixel(i,j+1);
+        referee.observer = this;
+        hanswer = &referee;
+
+        pixels = new Array(referee.nw,referee.nh);
+        GuiManager::get()->add_widget(pixels,"pixels");
+        pixels->enabled = false;
+
+        for (int row=0; row<referee.nh; row++) for (int column=0; column<referee.nw; column++) {
+            Pixel *pixel = new Pixel;
+            pixel->sprite->y = SdlManager::get()->height/2. + (pixel->sprite->h+5)*(row-(referee.nh-1)/2.);
+            pixel->sprite->x = SdlManager::get()->width/2.  + (pixel->sprite->w+5)*(column-(referee.nw-1)/2.);
+            pixels->add_widget(pixel,row,column);
         }
 
-        { // player 1 start
-            Pixel *start = get_pixel(nh-1,0);
-            start->sprite->state = 18;
-            p1pixels.insert(start);
-        }
-
-        { // player 2 start
-            Pixel *start = get_pixel(0,nw-1);
-            start->sprite->state = 19;
-            p2pixels.insert(start);
-        }
-
-        state = P1PLAYING;
-        last_played = -1;
-        update_playable();
-        MessageManager::get()->add_message("p1 starts");
-        status->update("p1 starts");
+        MessageManager::get()->add_message("init");
     }
     ~MainApp() {
         unregister_self();
-        for (int k=0; k<size; k++) { delete pixels[k]; }
-        delete pixels;
-        delete cursor;
         delete p1score;
         delete p2score;
         delete status;
-        delete click;
         delete endsfx;
     }
+    virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
+        assert(answer==hanswer);
+        //if (oppmove and oppmove->player==PLAYER_1) bot->start_playing(board,oppmove,answer);
+        if (sync_board(static_cast<const BoardBlocks*>(board),true)) MessageManager::get()->add_message("human playing");
+        else {
+            MessageManager::get()->add_message("no possible move");
+            answer->submit_move(NULL);
+        }
+    }
+    virtual void board_updated(const Board *board) {
+        MessageManager::get()->add_message("updating board");
+        sync_board(static_cast<const BoardBlocks*>(board),false);
+    }
 protected:
-    Pixel*& get_pixel(int i,int j) { return pixels[i*nw+j]; }
-    Pixel*  get_hoovered_pixel(float x,float y) {
-        const float cj = (2*x-SdlManager::get()->width+spacing*nw)/(2*spacing);
-        const float ci = (2*y-SdlManager::get()->height+spacing*nh)/(2*spacing);
-        if (ci>=0 and cj>=0 and cj<nw and ci<nh) { return get_pixel(ci,cj); }
-        else { return NULL; }
-    }
-    bool update_playable() {
-        assert(state==P1PLAYING or state==P2PLAYING);
-
-        for (int k=0; k<size; k++) { pixels[k]->playable = false; }
-
-        //update playable pixels
-        PixelsSet *playerpixels = (state == P1PLAYING) ? &p1pixels : &p2pixels;
-        for (PixelsSet::const_iterator i=playerpixels->begin(); i!= playerpixels->end(); i++) {
-            const Pixel *current = *i;
-            if (current->top and current->top->sprite->state<6 and current->top->sprite->state!=last_played)          current->top->playable    = true;
-            if (current->bottom and current->bottom->sprite->state<6 and current->bottom->sprite->state!=last_played) current->bottom->playable = true;
-            if (current->left and current->left->sprite->state<6 and current->left->sprite->state!=last_played)       current->left->playable   = true;
-            if (current->right and current->right->sprite->state<6 and current->right->sprite->state!=last_played)    current->right->playable  = true;
-        }
-
-        //update locked
-        int n=0;
-        for (int k=0; k<size; k++) if (pixels[k]->playable) { n++; }
-        return (n==0);
-    }
-    void play_move(Pixel *playpixel) {
-        if (state!=P1PLAYING and state!=P2PLAYING) {
-            DEBUGMSG("not in playing state!!\n");
-            return;
-        }
-
-        DEBUGMSG("------------\n");
-
-        assert(playpixel->playable);
-        last_played = playpixel->sprite->state;
-        PixelsSet *playerpixels = (state == P1PLAYING) ? &p1pixels : &p2pixels;
-        const int offset        = (state == P1PLAYING) ? 6 : 12;
-        const int start_state   = (state == P1PLAYING) ? 18 : 19;
-
-        //reset inqueue state and find initial seeds
-        SeedsQueue wonpixels;
-        for (int k=0; k<size; k++) {
-            Pixel *current = pixels[k];
-            current->inqueue = false;
-            if (current->playable and current->sprite->state==last_played) { wonpixels.push(make_pair(0,current)); current->inqueue = true; }
-        }
-
-        //fast marching on seeds
-        int k = 0;
-        while (not wonpixels.empty()) {
-            int top_distance = wonpixels.top().first;
-            Pixel *top_pixel = wonpixels.top().second;
-            fflush(stdout);
-            wonpixels.pop();
-
-            assert(top_pixel->sprite->state==last_played);
-            playerpixels->insert(top_pixel);
-            if (top_pixel->top and top_pixel->top->inqueue==false and top_pixel->top->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->top)); top_pixel->top->inqueue = true; }
-            if (top_pixel->bottom and top_pixel->bottom->inqueue==false and top_pixel->bottom->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->bottom)); top_pixel->bottom->inqueue = true; }
-            if (top_pixel->left and top_pixel->left->inqueue==false and top_pixel->left->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->left)); top_pixel->left->inqueue = true; }
-            if (top_pixel->right and top_pixel->right->inqueue==false and top_pixel->right->sprite->state==last_played) { wonpixels.push(make_pair(top_distance+1,top_pixel->right)); top_pixel->right->inqueue = true; }
-            k++;
-        }
-        DEBUGMSG("won %d pixels\n",k);
-
-        //update set color
-        for (PixelsSet::const_iterator i=playerpixels->begin(); i!=playerpixels->end(); i++) if ((*i)->sprite->state!=start_state) {
-            (*i)->sprite->state = last_played+offset;
-        }
-
-        { //update score display
-            char foo[10];
-            snprintf(foo,10,"%d",p1pixels.size());
-            p1score->update(foo);
-            snprintf(foo,10,"%d",p2pixels.size());
-            p2score->update(foo);
-        }
-
-        //switch players and look for end of game
-        if (state == P1PLAYING) { //player 1 ends its turn
-            state = P2PLAYING;
-            const bool p2locked = update_playable();
-            DEBUGMSG("player 2 locked = %d\n",p2locked);
-            if (p2locked) {
-                state = P1PLAYING;
-                const bool p1locked = update_playable();
-                DEBUGMSG("player 1 locked = %d\n",p1locked);
-                //if (p1locked) {
-                    const int p1score = p1pixels.size();
-                    const int p2score = p2pixels.size();
-                    if (p1score > p2score) {
-                        MessageManager::get()->add_message("p1 score win");
-                        status->update("p1 score win");
-                        state = P1WIN;
-                    } else if (p1score == p2score) {
-                        MessageManager::get()->add_message("draw");
-                        status->update("draw");
-                        state = DRAW;
-                    } else {
-                        MessageManager::get()->add_message("p2 score win");
-                        status->update("p2 score win");
-                        state = P2WIN;
-                    }
-                //} else {
-                //    MessageManager::get()->add_message("p1 win");
-                //    status->update("p1 win");
-                //    state = P1WIN;
-                //}
-                endsfx->play_once();
-            } else {
-                MessageManager::get()->add_message("p2 plays");
-                status->update("p2");
-            }
-        } else { //player 2 ends its turn
-            state = P1PLAYING;
-            const bool p1locked = update_playable();
-            DEBUGMSG("player 1 locked = %d\n",p1locked);
-            if (p1locked) {
-                state = P2PLAYING;
-                const bool p2locked = update_playable();
-                DEBUGMSG("player 2 locked = %d\n",p2locked);
-                //if (p2locked) {
-                    const int p1score = p1pixels.size();
-                    const int p2score = p2pixels.size();
-                    if (p1score > p2score) {
-                        MessageManager::get()->add_message("p1 score win");
-                        status->update("p1 score win");
-                        state = P1WIN;
-                    } else if (p1score == p2score) {
-                        MessageManager::get()->add_message("draw");
-                        status->update("draw");
-                        state = DRAW;
-                    } else {
-                        MessageManager::get()->add_message("p2 score win");
-                        status->update("p2 score win");
-                        state = P2WIN;
-                    }
-                //} else {
-                //    MessageManager::get()->add_message("p2 win");
-                //    status->update("p2 win");
-                //    state = P2WIN;
-                //}
-                endsfx->play_once();
-            } else {
-                MessageManager::get()->add_message("p1 plays");
-                status->update("p1");
-            }
-        }
-    }
-
+    //Pixel*  get_hoovered_pixel(float x,float y) {
+    //    const float cj = (2*x-SdlManager::get()->width+spacing*nw)/(2*spacing);
+    //    const float ci = (2*y-SdlManager::get()->height+spacing*nh)/(2*spacing);
+    //    if (ci>=0 and cj>=0 and cj<nw and ci<nh) { return get_pixel(ci,cj); }
+    //    else { return NULL; }
+    //}
     virtual bool key_down(SDLKey key) {
         switch (key) {
         case SDLK_f:
@@ -292,50 +343,63 @@ protected:
         return true;
     }
     virtual bool mouse_down(int button,float x,float y) {
-        if (button == 1) {
-            Pixel *current = get_hoovered_pixel(x,y);
-            if (current and current->playable) {
-                click->play_once();
-                play_move(current);
-            }
-        }
         return true;
     }
     virtual bool frame_entered(float t,float dt) {
-        SdlManager::get()->get_mouse_position(cursor->x,cursor->y);
-        cursor->draw(dt);
-
-        Pixel *hoovered = get_hoovered_pixel(cursor->x,cursor->y);
-        if (hoovered and hoovered->playable) hoovered->magnified = true;
-        for (int k=0; k<size; k++) { pixels[k]->draw(dt); }
-        if (hoovered and hoovered->playable) hoovered->magnified = false;
-
         p1score->draw(dt);
         p2score->draw(dt);
         status->draw(dt);
 
         return true;
     }
-    virtual void unregister_self() {
+    virtual void register_self() {
+        bot = new Bot(PLAYER_2,.8,.2);
+        referee.reset(this,bot);
+        pixels->enabled = true;
     }
-    const int nw;
-    const int nh;
-    const int size;
+    virtual void unregister_self() {
+        pixels->enabled = false;
+        delete bot;
+        bot = NULL;
+    }
+    bool sync_board(const BoardBlocks *board, bool update_playable) {
+        bool any = false;
+        for (int row=0; row<referee.nh; row++) for (int column=0; column<referee.nw; column++) {
+            const BoardBlocks::TokenBlocks &token = board->get_const_token(row,column);
+            Pixel *pixel = static_cast<Pixel*>(pixels->get_widget(row,column));
+            assert(pixel);
+            int state = token.color;
+            if (token.player==PLAYER_1)  state += 6;
+            if (token.player==PLAYER_2)  state += 12;
+            if (row==referee.nh-1 and column==0) state = 18;
+            if (row==0 and column==referee.nw-1) state = 19;
+            any |= token.playable;
+            pixel->update(state,token.playable and update_playable,token.color);
+        }
+
+        {
+        std::stringstream ss;
+        ss<<board->get_p1score();
+        p1score->update(ss.str());
+        } {
+        std::stringstream ss;
+        ss<<board->get_p2score();
+        p2score->update(ss.str());
+        } {
+        status->update(referee.get_status());
+        }
+
+        return any and update_playable;
+    }
     const float spacing;
 
-    enum State { P1PLAYING, P2PLAYING, P1WIN, P2WIN, DRAW };
-    State state;
-    int last_played;
-
-    Pixel **pixels;
-    Sprite *cursor;
-    PixelsSet p1pixels;
-    PixelsSet p2pixels;
+    Referee referee;
     Text *p1score;
     Text *p2score;
     Text *status;
-    Sfx *click;
     Sfx *endsfx;
+    Array *pixels;
+    Bot *bot;
 };
 
 int main() {
@@ -366,6 +430,11 @@ int main() {
         MessageManager::init();
         SdlManager::get()->register_listener(MessageManager::get());
         MessageManager::get()->set_display(true);
+
+        GuiManager::init();
+        SdlManager::get()->register_listener(GuiManager::get());
+        GuiManager::get()->add_sound_widgets();
+
         {
             Fps fps;
             fps.set_display(true);
@@ -375,6 +444,8 @@ int main() {
 
             SdlManager::get()->main_loop();
         }
+
+        GuiManager::free();
         SoundManager::free();
         MessageManager::free();
         SpriteManager::free();
