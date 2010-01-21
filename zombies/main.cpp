@@ -7,6 +7,7 @@
 #include <cmath>
 #include <list>
 #include <cassert>
+#include <cstdlib>
 #include <queue>
 #include <SDL/SDL_image.h>
 using std::cerr;
@@ -17,6 +18,7 @@ using std::endl;
 #define ZOMBIE_SPEED 80.
 #define BULLET_SPEED 800.
 #define BULLET_RELOAD .1
+#define SPAWN_TIME .3
 
 struct Bullet: public Point {
     Bullet(const Sprite *guy) : x(guy->x), y(guy->y), vx(BULLET_SPEED*cos(guy->angle)), vy(BULLET_SPEED*sin(guy->angle)) {}
@@ -181,6 +183,9 @@ struct Buildings: public Area {
     virtual float get_right() const { return w; }
     virtual float get_bottom() const { return h; }
     virtual float get_top() const { return 0; }
+    bool in_walls(float x,float y) const {
+        return is_inside(x,y,surf_wall);
+    }
     virtual bool  collide_with(const Point* p) const {
         assert(dynamic_cast<const Bullet*>(p));
         return is_inside(p->get_x(),p->get_y(),surf_bullet);
@@ -208,17 +213,25 @@ public:
         sprite->x = x;
         sprite->y = y;
         target = guy;
+        bx=0;by=0;
     }
     void update(float dt,const Buildings *buildings) {
         float dx;
         float dy;
         buildings->get_gradient(sprite->x,sprite->y,dx,dy);
         float norm;
+        bx+=(float(rand())/RAND_MAX-0.5)*dt*2;
+        by+=(float(rand())/RAND_MAX-0.5)*dt*2;
         norm = sqrt(dx*dx+dy*dy);
         if (norm != 0) {
+            dx/=norm; dy/=norm;
+            dx+=bx;dy+=by;
+            norm = sqrt(dx*dx+dy*dy);
             dx *= dt*ZOMBIE_SPEED/norm;
             dy *= dt*ZOMBIE_SPEED/norm;
             buildings->avoid_walls(sprite->x,sprite->y,dx,dy);
+            if (dx==0) bx=0;
+            if (dy==0) by=0;
         }
         sprite->angle = atan2(dy,dx);
         sprite->draw(dt);
@@ -236,6 +249,7 @@ public:
     Sprite *sprite;
 protected:
     const Sprite *target;
+    float bx,by;
 };
 
 //static int aaaa = 0;
@@ -249,7 +263,7 @@ public:
         guy->x=SdlManager::get()->width/2;
         guy->y=SdlManager::get()->height/2;
         bullet=SpriteManager::get()->get_sprite("bullet06");
-        reload=0;
+        reload=0; spawn=0; //Time counters
 
         space.second.insert(new OuterBox);
         buildings = new Buildings;
@@ -313,6 +327,26 @@ protected:
             reload = BULLET_RELOAD;
         }
         reload -= dt;
+        if (spawn <=0)
+        {
+            int side=rand()%2;
+            int axis=rand()%2;
+            int x,y;
+            if (axis) // x axis 
+            {
+                x=50 + (SdlManager::get()->width -100)*side;
+                y=rand() %int(SdlManager::get()->height-100)+50;
+            }
+            else {
+                x=rand() %int(SdlManager::get()->width-100)+50;
+                y=50 + (SdlManager::get()->height -100)*side;
+            }
+            if (not buildings->in_walls(x,y))
+                space.second.insert(new Zombie(guy,x,y));
+            spawn=SPAWN_TIME;
+        }
+        spawn-=dt;
+
 
         for (CollisionManager::Points::iterator i=space.first.begin(); i!=space.first.end(); i++) {
             Bullet *current = static_cast<Bullet*>(*i);
@@ -379,7 +413,7 @@ protected:
     Sprite *cross;
     Sprite *bullet;
     Sprite *guy;
-    float reload;
+    float reload,spawn;
     bool shooting;
     CollisionManager::Space &space;
     Sprite *map;
