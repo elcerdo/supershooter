@@ -83,6 +83,10 @@ void SdlManager::unregister_listener(Listener *listener) { //FIXME existance
     if (in_main_loop) listener->unregister_self();
 }
 
+bool SdlManager::is_listener_registered(Listener *listener) const {
+    return (listeners.find(listener)!=listeners.end());
+}
+
 int SdlManager::event_filter(const SDL_Event *ev) {
     if (ev->type==SDL_MOUSEMOTION or ev->type==SDL_ACTIVEEVENT or ev->type==SDL_VIDEOEXPOSE) return 0;
     return 1;

@@ -35,6 +35,7 @@ public:
     void main_loop();
     void register_listener(Listener *listener);
     void unregister_listener(Listener *listener);
+    bool is_listener_registered(Listener *listener) const;
     void toggle_fullscreen() const;
     void set_screen_center(float cx,float cy);
     void update_projection() const;

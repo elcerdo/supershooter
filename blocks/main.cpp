@@ -6,6 +6,7 @@
 #include "boardblocks.h"
 #include "uct.h"
 #include <sstream>
+#include <iomanip>
 using std::cerr;
 using std::endl;
 using std::cout;
@@ -82,7 +83,13 @@ public:
         if (board) delete board;
     }
     void reset(Player *p1, Player *p2) {
-        assert(winner == NOT_PLAYED);
+        winner = NOT_PLAYED;
+        if (board) {
+            delete board;
+            board = NULL;
+            this->p1 = NULL;
+            this->p2 = NULL;
+        }
         assert(not board);
         assert(not this->p1 and p1);
         assert(not this->p2 and p2);
@@ -169,29 +176,27 @@ public:
             this->oppmove = oppmove;
             this->answer  = answer;
             pthread_cond_broadcast(&init_complete);
-            cout<<"submitted"<<endl;
+            cout<<"asked move to bot "<<player<<endl;
             pthread_mutex_unlock(&init_mutex);
         }
     }
 protected:
     static void *main_loop(void *abstract) {
-        cout<<"thread started"<<endl;
         Bot *bot = static_cast<Bot*>(abstract);
         const float max_sec = bot->max_sec;
         const Token player  = bot->player;
+        cout<<"thread started id="<<std::hex<<pthread_self()<<" player="<<player<<endl; //cancel point
 
         Node *root = new Node(bot->uct_constant);
 
+        //beware: all system call are cancel point!!!
         while (true) {
-            const Move *move = NULL;
             Submittable *local_answer = NULL;
-            const Move *local_oppmove = NULL;
-            const Board *local_board = NULL;
+            Board *local_board = NULL;
+            Move *local_oppmove = NULL;
 
             { //wait for local data
                 pthread_mutex_lock(&bot->init_mutex);
-
-                cout<<"waiting for data"<<endl;
                 pthread_cleanup_push(cleanup_root,root);
                 pthread_cond_wait(&bot->init_complete,&bot->init_mutex); //also cancel point
                 pthread_cleanup_pop(0);
@@ -199,69 +204,86 @@ protected:
                 local_answer = bot->answer;
                 local_board = bot->board->deepcopy();
                 if (bot->oppmove) local_oppmove = bot->oppmove->deepcopy();
-                cout<<"copied local data"<<endl;
                 pthread_mutex_unlock(&bot->init_mutex);
             }
 
             assert(local_board);
             assert(local_answer);
-            cout<<"--------------------------------------"<<endl;
 
             //reuse last simulations if possibles
-            if (local_oppmove) {
-                root = root->advance_and_detach(local_oppmove);
-                delete local_oppmove;
-            }
+            root = root->advance_and_detach(local_oppmove);
+            if (local_oppmove) { delete local_oppmove; local_oppmove = NULL; }
             Count saved_simulations=root->get_nb();
         
-            clock_t start=clock(),end=clock();
-            int k = 0;
-            while (root->get_mode()==NORMAL and end-start<max_sec*CLOCKS_PER_SEC) {
-                Board *copy=local_board->deepcopy();
-                Token winner=root->play_random_game(copy,player);
-                delete copy;
-                end=clock();
-                k++;
+            int nsimu = 0;
+            clock_t duration = 0;
+            { //simulate games
+                pthread_cleanup_push(cleanup_root,root);
+                pthread_cleanup_push(cleanup_board,local_board);
+
+                clock_t start=clock();
+                while (root->get_mode()==NORMAL and duration<max_sec*CLOCKS_PER_SEC) {
+                    Board *copy=local_board->deepcopy();
+                    Token winner=root->play_random_game(copy,player);
+                    nsimu++;
+                    delete copy;
+                    duration = clock()-start;
+                    pthread_testcancel(); //cancel point
+                }
+
+                pthread_cleanup_pop(0);
+                pthread_cleanup_pop(0);
+
             }
 
+            const Move *move = NULL;
             const Node *best_child=root->get_best_child();
             if (best_child) move = best_child->get_move();
 
-            //simulation report
-            std::cout<<"simulated "<<k<<" games ("<<saved_simulations<<" saved) in "<<float(end-start)/CLOCKS_PER_SEC<<"s"<<std::endl;
+            { //print report
+                pthread_cleanup_push(cleanup_root,root);
+                pthread_cleanup_push(cleanup_board,local_board);
 
-            //move report
-            std::cout<<"playing ";
-            switch (root->get_mode()) {
-            case NORMAL:
-                std::cout<<"normal "<<best_child->get_winning_probability()<<" ";
-                break;
-            case WINNER:
-                std::cout<<"loosing ";
-                break;
-            case LOOSER:
-                std::cout<<"winning ";
-                break;
+                cout<<"simulated "<<nsimu<<" games ("<<saved_simulations<<" saved) in "<<float(duration)/CLOCKS_PER_SEC<<"s"<<endl;
+
+                if (move) move->print();
+                else cout<<"no move";
+                cout<<endl;
+
+                //move report
+                switch (root->get_mode()) {
+                case NORMAL:
+                    cout<<std::fixed<<std::setprecision(0)<<100.*best_child->get_winning_probability()<<"\% chance of win";
+                    break;
+                case WINNER:
+                    cout<<"loosing";
+                    break;
+                case LOOSER:
+                    cout<<"sure win";
+                    break;
+                }
+                cout<<endl<<"--------------------------------------"<<endl; //also cancel point
+
+                pthread_cleanup_pop(0);
+                pthread_cleanup_pop(0);
             }
-            std::cout<<"move ";
-            if (move) move->print();
-            else cout<<"NULL";
-            std::cout<<std::endl;
 
             //play best_move
-            if (move) {
-                root=root->advance_and_detach(move);
+            root=root->advance_and_detach(move);
+
+            { //send move to submitable
+                pthread_cleanup_push(cleanup_root,root);
+                pthread_cleanup_push(cleanup_board,local_board);
+                local_answer->submit_move(move); //potentially cancel point
+                pthread_cleanup_pop(0);
+                pthread_cleanup_pop(0);
             }
-            local_answer->submit_move(move);
-            cout<<"submitted move"<<endl;
 
             //delete stuff
             delete local_board;
         }
 
-        delete root;
-
-        cout<<"return from thread"<<endl;
+        assert(false);
         return NULL;
     }
 
@@ -269,6 +291,12 @@ protected:
         cout<<"cleaning up root"<<endl;
         Node *root = static_cast<Node*>(abstract);
         delete root;
+    }
+
+    static void cleanup_board(void *abstract) {
+        cout<<"cleaning up board"<<endl;
+        Board *board = static_cast<Board*>(abstract);
+        delete board;
     }
 
     pthread_t thread;
@@ -372,19 +400,11 @@ protected:
         pixels->enabled = true;
     }
     virtual void unregister_self() {
-        cout<<"unregister"<<endl;
+        MessageManager::get()->add_message("uninit");
         pixels->enabled = false;
 
-        if (not p1human) {
-            assert(bot1);
-            delete bot1;
-            bot1 = NULL;
-        }
-        if (not p2human) {
-            assert(bot2);
-            delete bot2;
-            bot2 = NULL;
-        }
+        if (bot1) { delete bot1; bot1=NULL; }
+        if (bot2) { delete bot2; bot2=NULL; }
     }
     bool sync_board(const BoardBlocks *board, bool update_playable) {
         bool any = false;
@@ -434,11 +454,37 @@ public:
         GuiManager::get()->add_widget(group,"mainapp");
 
         {
-        Button *but = new Button(SpriteManager::get()->get_text("human vs human","font01",Text::LEFT),&human_human_callback);
-        but->sprite->x = 100;
+        Button *but = new Button(SpriteManager::get()->get_text("human vs human","font01",Text::CENTER),&human_human_callback);
+        but->sprite->x = SdlManager::get()->width/2.;
         but->sprite->y = 100;
+        but->data = this;
         group->add_widget(but,"hhbut");
+        } {
+        Button *but = new Button(SpriteManager::get()->get_text("human vs bot","font01",Text::CENTER),&human_bot_callback);
+        but->sprite->x = SdlManager::get()->width/2.;
+        but->sprite->y = 150;
+        but->data = this;
+        group->add_widget(but,"hbbut");
+        } {
+        Button *but = new Button(SpriteManager::get()->get_text("bot vs human","font01",Text::CENTER),&bot_human_callback);
+        but->sprite->x = SdlManager::get()->width/2.;
+        but->sprite->y = 200;
+        but->data = this;
+        group->add_widget(but,"bhbut");
+        } {
+        Button *but = new Button(SpriteManager::get()->get_text("bot vs bot","font01",Text::CENTER),&bot_bot_callback);
+        but->sprite->x = SdlManager::get()->width/2.;
+        but->sprite->y = 250;
+        but->data = this;
+        group->add_widget(but,"bbbut");
         }
+    }
+    void launch_game(bool p1h,bool p2h) {
+        assert(not SdlManager::get()->is_listener_registered(&game));
+        game.p1human = p1h;
+        game.p2human = p2h;
+        SdlManager::get()->register_listener(&game);
+        GuiManager::get()->get_widget("mainapp")->enabled = false;
     }
 protected:
     virtual bool key_down(SDLKey key) {
@@ -447,16 +493,14 @@ protected:
             SdlManager::get()->toggle_fullscreen();
             break;
         case SDLK_ESCAPE:
-            return false;
+            cout<<"escape "<<SdlManager::get()->is_listener_registered(&game)<<endl;
+            if (SdlManager::get()->is_listener_registered(&game)) {
+                SdlManager::get()->unregister_listener(&game);
+                GuiManager::get()->get_widget("mainapp")->enabled = true;
+            } else return false;
             break;
         default:
             break;
-        }
-        return true;
-    }
-    virtual bool mouse_down(int button,float x,float y) {
-        if (button==1 and game.game_ended()) {
-            SdlManager::get()->unregister_listener(&game);
         }
         return true;
     }
@@ -468,14 +512,27 @@ protected:
     Group *group;
 private:
     static void human_human_callback(Button *but) {
-        cout<<"h vs h"<<endl;
+        cout<<"human vs human"<<endl;
+        static_cast<MainApp*>(but->data)->launch_game(true,true);
+    }
+    static void human_bot_callback(Button *but) {
+        cout<<"human vs bot"<<endl;
+        static_cast<MainApp*>(but->data)->launch_game(true,false);
+    }
+    static void bot_human_callback(Button *but) {
+        cout<<"bot vs human"<<endl;
+        static_cast<MainApp*>(but->data)->launch_game(false,true);
+    }
+    static void bot_bot_callback(Button *but) {
+        cout<<"bot vs bot"<<endl;
+        static_cast<MainApp*>(but->data)->launch_game(false,false);
     }
 };
 
 int main() {
     try {
         srand(time(NULL));
-        cout.precision(2);
+        //cout.precision(2);
 
         SdlManager::init();
         SdlManager::get()->set_background_color(0,0,.05);
@@ -500,7 +557,6 @@ int main() {
 
         MessageManager::init();
         SdlManager::get()->register_listener(MessageManager::get());
-        MessageManager::get()->set_display(true);
 
         GuiManager::init();
         SdlManager::get()->register_listener(GuiManager::get());
@@ -508,8 +564,11 @@ int main() {
 
         {
             Fps fps;
-            fps.set_display(true);
             MainApp mainapp;
+
+            //fps.set_display(true);
+            //MessageManager::get()->set_display(true);
+
             SdlManager::get()->register_listener(&fps);
             SdlManager::get()->register_listener(&mainapp);
 

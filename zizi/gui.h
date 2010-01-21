@@ -14,6 +14,7 @@ public:
 
     bool enabled;
     Widget *parent;
+    void *data;
 };
 
 class Group : public Widget {

@@ -5,7 +5,7 @@
 #include "except.h"
 #include "sound.h"
 
-Widget::Widget() : parent(NULL), enabled(true) {};
+Widget::Widget() : data(NULL), parent(NULL), enabled(true) {};
 Widget::~Widget() {};
 
 Group::Group() : Widget() {};
