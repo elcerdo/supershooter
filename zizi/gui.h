@@ -64,7 +64,7 @@ protected:
 
 class ToggleButton : public Button {
 public:
-    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, const std::string &text="", const std::string &font="font03", Text::Align align=Text::LEFT);
+    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, const std::string &text="", const std::string &font="font01", Text::Align align=Text::LEFT);
     virtual ~ToggleButton();
 
     virtual bool interact(float x, float y);

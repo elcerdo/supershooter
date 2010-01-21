@@ -136,10 +136,10 @@ ToggleButton::~ToggleButton() {
 
 bool ToggleButton::interact(float x, float y) {
     bool valid = is_click_valid(x,y);
-    if (valid and clicked) {
+    if (valid) {
         state = !state;
         casted->state = state;
-        clicked(this);
+        if (clicked) clicked(this);
     }
     return valid;
 }

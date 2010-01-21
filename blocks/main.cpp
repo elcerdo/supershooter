@@ -156,9 +156,11 @@ protected:
 
 class Bot : public Player {
 public:
-    Bot(Token player,float max_sec, float uct_constant) : player(player), max_sec(max_sec), uct_constant(uct_constant), answer(NULL), oppmove(NULL), board(NULL) {
+    Bot(Token player,float max_sec, float uct_constant, bool god_mode) : player(player), max_sec(max_sec), god_mode(god_mode), uct_constant(uct_constant), answer(NULL), oppmove(NULL), board(NULL), is_waiting(false), hail_for_waiting(false) {
         assert(player!=NOT_PLAYED);
         pthread_mutex_init(&init_mutex,NULL);
+        pthread_mutex_init(&wait_mutex,NULL);
+        pthread_mutex_init(&hail_mutex,NULL);
         pthread_cond_init(&init_complete,NULL);
         pthread_create(&thread,NULL,&Bot::main_loop,this);
     }
@@ -169,23 +171,49 @@ public:
         pthread_mutex_destroy(&init_mutex);
     }
     virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
-        assert(board and answer);
-        {
-            pthread_mutex_lock(&init_mutex);
-            this->board   = board;
-            this->oppmove = oppmove;
-            this->answer  = answer;
-            pthread_cond_broadcast(&init_complete);
-            cout<<"asked move to bot "<<player<<endl;
-            pthread_mutex_unlock(&init_mutex);
+        assert(board);
+        assert(answer);
+
+        //hail thread to become waiting
+        pthread_mutex_lock(&hail_mutex);
+        hail_for_waiting = true;
+        pthread_mutex_unlock(&hail_mutex);
+
+        //wait for thread to be pending for submission
+        pthread_mutex_lock(&wait_mutex);
+        while (not is_waiting) {
+            pthread_mutex_unlock(&wait_mutex);
+            usleep(10); //avoid spin lock
+            pthread_mutex_lock(&wait_mutex);
         }
+        pthread_mutex_unlock(&wait_mutex);
+
+        //submit new board and opponent move for computation
+        pthread_mutex_lock(&init_mutex);
+        this->board   = board;
+        this->oppmove = oppmove;
+        this->answer  = answer;
+
+        //reset thread waiting state
+        pthread_mutex_lock(&wait_mutex);
+        is_waiting = false;
+        pthread_mutex_unlock(&wait_mutex);
+
+        //reset thread hail state
+        pthread_mutex_lock(&hail_mutex);
+        hail_for_waiting = false;
+        pthread_mutex_unlock(&hail_mutex);
+
+        pthread_cond_broadcast(&init_complete);
+        pthread_mutex_unlock(&init_mutex);
     }
 protected:
     static void *main_loop(void *abstract) {
         Bot *bot = static_cast<Bot*>(abstract);
         const float max_sec = bot->max_sec;
+        const bool god_mode = bot->god_mode;
         const Token player  = bot->player;
-        cout<<"thread started id="<<std::hex<<pthread_self()<<" player="<<player<<endl; //cancel point
+        cout<<"bot thread started id="<<std::hex<<pthread_self()<<std::dec<<" player="<<player<<" max_sec="<<max_sec<<" god_mode="<<god_mode<<endl; //cancel point
 
         Node *root = new Node(bot->uct_constant);
 
@@ -197,6 +225,11 @@ protected:
 
             { //wait for local data
                 pthread_mutex_lock(&bot->init_mutex);
+
+                pthread_mutex_lock(&bot->wait_mutex);
+                bot->is_waiting = true;
+                pthread_mutex_unlock(&bot->wait_mutex);
+
                 pthread_cleanup_push(cleanup_root,root);
                 pthread_cond_wait(&bot->init_complete,&bot->init_mutex); //also cancel point
                 pthread_cleanup_pop(0);
@@ -207,74 +240,77 @@ protected:
                 pthread_mutex_unlock(&bot->init_mutex);
             }
 
-            assert(local_board);
-            assert(local_answer);
-
-            //reuse last simulations if possibles
-            root = root->advance_and_detach(local_oppmove);
-            if (local_oppmove) { delete local_oppmove; local_oppmove = NULL; }
-            Count saved_simulations=root->get_nb();
+            if (local_oppmove) { //reuse last simulations if possibles
+                root = root->advance_and_detach(local_oppmove);
+                delete local_oppmove;
+                local_oppmove = NULL;
+            }
         
-            int nsimu = 0;
-            clock_t duration = 0;
             { //simulate games
                 pthread_cleanup_push(cleanup_root,root);
                 pthread_cleanup_push(cleanup_board,local_board);
 
+                int nsimu = 0;
                 clock_t start=clock();
+                clock_t duration = 0;
                 while (root->get_mode()==NORMAL and duration<max_sec*CLOCKS_PER_SEC) {
                     Board *copy=local_board->deepcopy();
                     Token winner=root->play_random_game(copy,player);
-                    nsimu++;
                     delete copy;
                     duration = clock()-start;
+                    nsimu++;
                     pthread_testcancel(); //cancel point
                 }
 
-                pthread_cleanup_pop(0);
-                pthread_cleanup_pop(0);
+                cout<<endl<<"bot "<<player<<" main computation"<<endl;
+                print_report(root,nsimu,duration);
 
+                pthread_cleanup_pop(0);
+                pthread_cleanup_pop(0);
             }
 
-            const Move *move = NULL;
-            const Node *best_child=root->get_best_child();
-            if (best_child) move = best_child->get_move();
 
-            { //print report
-                pthread_cleanup_push(cleanup_root,root);
-                pthread_cleanup_push(cleanup_board,local_board);
+            { //send best move to submitable and play it on local board
+                const Move *best_move = NULL;
+                const Node *best_child=root->get_best_child();
+                if (best_child) best_move = best_child->get_move(); //this is a normal move
 
-                cout<<"simulated "<<nsimu<<" games ("<<saved_simulations<<" saved) in "<<float(duration)/CLOCKS_PER_SEC<<"s"<<endl;
-
-                if (move) move->print();
-                else cout<<"no move";
-                cout<<endl;
-
-                //move report
-                switch (root->get_mode()) {
-                case NORMAL:
-                    cout<<std::fixed<<std::setprecision(0)<<100.*best_child->get_winning_probability()<<"\% chance of win";
-                    break;
-                case WINNER:
-                    cout<<"loosing";
-                    break;
-                case LOOSER:
-                    cout<<"sure win";
-                    break;
+                if (best_move) { //play submitted best move play best_move
+                    root=root->advance_and_detach(best_move);
+                    local_board->play_move(*best_move);
                 }
-                cout<<endl<<"--------------------------------------"<<endl; //also cancel point
 
+                pthread_cleanup_push(cleanup_root,root);
+                pthread_cleanup_push(cleanup_board,local_board);
+                local_answer->submit_move(best_move); //potentially cancel point
                 pthread_cleanup_pop(0);
                 pthread_cleanup_pop(0);
             }
 
-            //play best_move
-            root=root->advance_and_detach(move);
-
-            { //send move to submitable
+            if (god_mode) { //simulate more games
                 pthread_cleanup_push(cleanup_root,root);
                 pthread_cleanup_push(cleanup_board,local_board);
-                local_answer->submit_move(move); //potentially cancel point
+
+                int nsimu = 0;
+                clock_t start = clock();
+                pthread_mutex_lock(&bot->hail_mutex);
+                while (root->get_mode()==NORMAL and not bot->hail_for_waiting) {
+                    pthread_mutex_unlock(&bot->hail_mutex);
+
+                    Board *copy=local_board->deepcopy();
+                    Token winner=root->play_random_game(copy,other_player(player)); //oppenent play first
+                    delete copy;
+                    nsimu++;
+
+                    pthread_testcancel(); //cancel point
+
+                    pthread_mutex_lock(&bot->hail_mutex);
+                }
+                pthread_mutex_unlock(&bot->hail_mutex);
+
+                cout<<endl<<"bot "<<player<<" overtime computation"<<endl;
+                print_report(root,nsimu,clock()-start);
+
                 pthread_cleanup_pop(0);
                 pthread_cleanup_pop(0);
             }
@@ -283,8 +319,39 @@ protected:
             delete local_board;
         }
 
+
         assert(false);
         return NULL;
+    }
+
+    static void print_report(const Node *root, int nsimu, clock_t duration) { //is a cancel point
+        cout<<"simulated "<<nsimu<<" games in "<<float(duration)/CLOCKS_PER_SEC<<"s (total "<<root->get_nb()<<" games)";
+        if (duration) cout<<" "<<float(nsimu*CLOCKS_PER_SEC)/duration<<"simu/s";
+        cout<<endl;
+
+        const Move *best_move = NULL;
+        const Node *best_child=root->get_best_child();
+        if (best_child) best_move = best_child->get_move(); //this is a normal move
+
+        if (best_move) {
+            cout<<"best move is ";
+            best_move->print();
+        } else cout<<"no move";
+        cout<<endl;
+
+        //move report
+        switch (root->get_mode()) {
+        case NORMAL:
+            cout<<std::fixed<<std::setprecision(0)<<100.*best_child->get_winning_probability()<<"\% chance of win";
+            break;
+        case WINNER:
+            cout<<"loosing";
+            break;
+        case LOOSER:
+            cout<<"sure win";
+            break;
+        }
+        cout<<endl;
     }
 
     static void cleanup_root(void *abstract) {
@@ -300,15 +367,17 @@ protected:
     }
 
     pthread_t thread;
-    pthread_mutex_t init_mutex;
-    pthread_cond_t  init_complete;
+    pthread_mutex_t init_mutex, wait_mutex, hail_mutex;
+    pthread_cond_t init_complete;
     const Token player;
     const float max_sec;
+    const bool god_mode;
     const float uct_constant;
     const Board *board;
-    const Move  *oppmove;
+    const Move *oppmove;
     Submittable *answer;
-    
+    bool is_waiting;
+    bool hail_for_waiting;
 };
 
 static Submittable *hanswer = NULL;
@@ -325,7 +394,7 @@ void pixel_callback(Button *abstract) {
 class GameApp : public Listener, public Player, public Observer {
 public:
     static const float SCORESEPARATION = 40;
-    GameApp() : spacing(35), bot1(NULL), bot2(NULL), p1human(true), p2human(true) { 
+    GameApp() : spacing(35), bot1(NULL), bot2(NULL), p1human(true), p2human(true), bot1god(false), bot2god(false) { 
         endsfx = SoundManager::get()->get_sfx("boom");
 
         p1score = SpriteManager::get()->get_text("0","font00",Text::RIGHT);
@@ -376,6 +445,8 @@ public:
     bool game_ended() { return referee.game_ended(); }
     bool p1human;
     bool p2human;
+    bool bot1god;
+    bool bot2god;
 protected:
     virtual bool frame_entered(float t,float dt) {
         p1score->draw(dt);
@@ -389,11 +460,11 @@ protected:
         Player *p1 = this;
         Player *p2 = this;
         if (not p1human) {
-            bot1 = new Bot(PLAYER_1,.8,.2);
+            bot1 = new Bot(PLAYER_1,1,.2,bot1god);
             p1 = bot1;
         }
         if (not p2human) {
-            bot2 = new Bot(PLAYER_2,.8,.2);
+            bot2 = new Bot(PLAYER_2,1,.2,bot2god);
             p2 = bot2;
         }
         referee.reset(p1,p2);
@@ -478,11 +549,26 @@ public:
         but->data = this;
         group->add_widget(but,"bbbut");
         }
+
+        {
+        Button *but = new ToggleButton("check",NULL,game.bot1god,"bot1 god mode");
+        but->sprite->x = 50;
+        but->sprite->y = 400;
+        group->add_widget(but,"bot1god");
+        } {
+        Button *but = new ToggleButton("check",NULL,game.bot2god,"bot2 god mode");
+        but->sprite->x = 50;
+        but->sprite->y = 430;
+        group->add_widget(but,"bot2god");
+        }
+
     }
     void launch_game(bool p1h,bool p2h) {
         assert(not SdlManager::get()->is_listener_registered(&game));
         game.p1human = p1h;
         game.p2human = p2h;
+        game.bot1god = static_cast<ToggleButton*>(group->get_widget("bot1god"))->state;
+        game.bot2god = static_cast<ToggleButton*>(group->get_widget("bot2god"))->state;
         SdlManager::get()->register_listener(&game);
         GuiManager::get()->get_widget("mainapp")->enabled = false;
     }
