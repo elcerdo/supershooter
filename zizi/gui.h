@@ -12,8 +12,9 @@ public:
     virtual bool interact(float x, float y) = 0;
     virtual bool draw(float x,float y,float dt) const = 0;
 
+    static bool is_click_valid(const Sprite *sprite,float x, float y);
+
     bool enabled;
-    Widget *parent;
     void *data;
 };
 
@@ -57,8 +58,6 @@ public:
 
     Sprite *sprite;
 protected:
-    bool is_click_valid(float x, float y) const;
-
     void (*clicked)(Button*);
 };
 

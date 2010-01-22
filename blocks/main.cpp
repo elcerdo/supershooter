@@ -23,18 +23,15 @@ public:
     }
 
     virtual bool interact(float x, float y) {
-        bool valid = is_click_valid(x,y);
-        if (valid and magnifiable and clicked) {
-            clicked(this);
-            return true;
-        }
-        return false;
+        if (not magnifiable) return false;
+        if (not Button::interact(x,y)) return false;
+        return true;
     }
 
     virtual bool draw(float x,float y,float dt) const {
         if (not enabled) return false;
 
-        if (magnifiable and is_click_valid(x,y)) {
+        if (magnifiable and Widget::is_click_valid(sprite,x,y)) {
             sprite->factorx *= MAGNIFYFACTOR;
             sprite->factory *= MAGNIFYFACTOR;
             sprite->draw(dt);
