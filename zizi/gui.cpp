@@ -5,7 +5,23 @@
 #include "except.h"
 #include "sound.h"
 
-Widget::Widget() : parent(NULL), enabled(true) {};
+bool Widget::is_click_valid(const Sprite *sprite,float x, float y) {
+    float bx = -sprite->w/2., by = -sprite->h/2.;
+    float tx = sprite->w/2.,  ty = sprite->h/2.;
+    float a,fx,fy;
+
+    sprite->absolute_coordinates(bx,by,a,fx,fy);
+    assert(a==0.);
+    sprite->absolute_coordinates(tx,ty,a,fx,fy);
+    assert(a==0.);
+
+    assert(bx<tx and by<ty);
+
+    if (x<bx or x>tx or y<by or y>ty) return false;
+    return true;
+}
+
+Widget::Widget() : data(NULL), enabled(true) {};
 Widget::~Widget() {};
 
 Group::Group() : Widget() {};
@@ -17,7 +33,6 @@ Group::~Group() {
 void Group::add_widget(Widget *widget,const std::string &name) {
     Widgets::iterator i = widgets.find(name);
     if (i!=widgets.end()) { delete i->second; widgets.erase(i); }
-    widget->parent = this;
     widgets[name] = widget;
 }
 
@@ -29,6 +44,7 @@ Widget *Group::get_widget(const std::string &name) {
 
 bool Group::interact(float x, float y) {
     if (not enabled) return false;
+
     bool ret = false;
     for (Widgets::iterator i=widgets.begin(); i!=widgets.end(); i++) {
         Widget *widget = i->second;
@@ -80,6 +96,7 @@ Widget *Array::get_widget(int row,int column) {
 
 bool Array::interact(float x, float y) {
     if (not enabled) return false;
+
     bool ret = false;
     for (int k=0; k<size; k++) {
         Widget *widget = widgets[k];
@@ -100,11 +117,14 @@ bool Array::draw(float x,float y,float dt) const {
 
 Widget *&Array::unflatten(int row,int column) { return widgets[row+column*nh]; }
 
+Button::Button(Sprite *sprite, void (*clicked)(Button*)) : Widget(), sprite(sprite), clicked(clicked) { assert(sprite); }
 Button::Button(const std::string &sprname, void (*clicked)(Button*)) : Widget(), sprite(SpriteManager::get()->get_sprite(sprname)), clicked(clicked) { assert(sprite); }
 Button::~Button() { delete sprite; }
 
 bool Button::interact(float x, float y) {
-    bool valid = is_click_valid(x,y);
+    if (not enabled) return false;
+
+    bool valid = is_click_valid(sprite,x,y);
     if (valid and clicked) clicked(this);
     return valid;
 }
@@ -112,14 +132,6 @@ bool Button::interact(float x, float y) {
 bool Button::draw(float x,float y,float dt) const {
     if (not enabled) return false;
     sprite->draw(dt);
-    return true;
-}
-
-bool Button::is_click_valid(float x, float y) const {
-    if (not enabled) return false;
-    float dx = fabsf(x-sprite->x)/sprite->w;
-    float dy = fabsf(y-sprite->y)/sprite->h;
-    if (dx>.5 or dy>.5) return false;
     return true;
 }
 
@@ -134,13 +146,11 @@ ToggleButton::~ToggleButton() {
 }
 
 bool ToggleButton::interact(float x, float y) {
-    bool valid = is_click_valid(x,y);
-    if (valid and clicked) {
-        state = !state;
-        casted->state = state;
-        clicked(this);
-    }
-    return valid;
+    if (not Button::interact(x,y)) return false;
+
+    state = !state;
+    casted->state = state;
+    return true;
 }
 
 bool ToggleButton::draw(float x,float y,float dt) const {

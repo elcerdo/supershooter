@@ -24,7 +24,7 @@ Node::~Node() {
 
 Node * Node::advance_and_detach(const Move *move) {
     assert(move);
-	assert(not father);
+	assert(not father); //only on root
 	Node *new_root=NULL;
 	for (Nodes::iterator iter=children.begin();iter!=children.end();iter++) {
 		if ((*iter)->move->compare(*move)) {
