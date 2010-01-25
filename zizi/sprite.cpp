@@ -29,8 +29,8 @@ Sprite *Sprite::create_child(const std::string &name) {
     return register_child(child);
 }
 
-void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const {
-    if (not parent) { ax=x; ay=y; aangle=angle; afactorx=factorx; afactory=factory; }
+void Sprite::absolute_coordinates(float &ax,float &ay,float &aangle,float &afactorx, float &afactory) const { //FIXME doesn't care about cx and cy
+    if (not parent) { ax+=x; ay+=y; aangle=angle; afactorx=factorx; afactory=factory; }
     else {
         parent->absolute_coordinates(ax,ay,aangle,afactorx,afactory);
         ax+=afactorx*x*cos(aangle)-afactory*y*sin(aangle);

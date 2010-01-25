@@ -12,8 +12,10 @@ public:
     virtual bool interact(float x, float y) = 0;
     virtual bool draw(float x,float y,float dt) const = 0;
 
+    static bool is_click_valid(const Sprite *sprite,float x, float y);
+
     bool enabled;
-    Widget *parent;
+    void *data;
 };
 
 class Group : public Widget {
@@ -47,6 +49,7 @@ protected:
 
 class Button : public Widget {
 public:
+    Button(Sprite *sprite, void (*clicked)(Button*));
     Button(const std::string &sprname, void (*clicked)(Button*));
     virtual ~Button();
 
@@ -55,14 +58,12 @@ public:
 
     Sprite *sprite;
 protected:
-    bool is_click_valid(float x, float y) const;
-
     void (*clicked)(Button*);
 };
 
 class ToggleButton : public Button {
 public:
-    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, const std::string &text="", const std::string &font="font03", Text::Align align=Text::LEFT);
+    ToggleButton(const std::string &sprname, void (*toggled)(Button*), bool istate=false, const std::string &text="", const std::string &font="font01", Text::Align align=Text::LEFT);
     virtual ~ToggleButton();
 
     virtual bool interact(float x, float y);
