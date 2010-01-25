@@ -321,23 +321,11 @@ void BoardBlocks::play_move(const Move &abstract_move) {
 
         assert(current->color==move.color and current->player==NOT_PLAYED);
 
-        Tokens neighbors;
-        if (current->i>0) neighbors.push_back(&get_token(current->i-1,current->j));
-        if (current->i<height-1) neighbors.push_back(&get_token(current->i+1,current->j));
-        if (current->j>0) neighbors.push_back(&get_token(current->i,current->j-1));
-        if (current->j<width-1) neighbors.push_back(&get_token(current->i,current->j+1));
+        if (current->i>0) update_won(&get_token(current->i-1,current->j),current->color,distance,won,queue);
+        if (current->i<height-1) update_won(&get_token(current->i+1,current->j),current->color,distance,won,queue);
+        if (current->j>0) update_won(&get_token(current->i,current->j-1),current->color,distance,won,queue);
+        if (current->j<width-1) update_won(&get_token(current->i,current->j+1),current->color,distance,won,queue);
         //cout<<neighbors.size()<<" NEIGHBORS"<<endl;
-        for (Tokens::const_iterator i=neighbors.begin(); i!=neighbors.end(); i++) {
-            TokenBlocks *neighbor = *i;
-            bool not_in_won = (won.find(neighbor)==won.end());
-            //cout<<"PUSHED ";
-            //neighbor->print();
-            //cout<<" "<<distance+1<<" "<<not_in_won<<endl;
-            if (neighbor->color==current->color and neighbor->player==NOT_PLAYED and not_in_won) {
-                queue.push(std::make_pair(distance+1,neighbor));
-                won.insert(neighbor);
-            }
-        }
     }
 
     for (TokenBlocksSet::const_iterator i=won.begin(); i!=won.end(); i++) {
