@@ -54,9 +54,9 @@ protected:
     void update_playable();
 private:
     typedef std::set<Color> Colors;
-    typedef std::priority_queue<TokenBlocks*> Queue;
+    typedef std::queue<TokenBlocks*> Queue;
 
-    static void update_playable_token(TokenBlocks* current, const TokenBlocks* neighbor, const Color forbidden_color, Queue &queue);
+    inline void update_playable_token(TokenBlocks* current, const TokenBlocks* neighbor, const Color forbidden_color, Queue &queue);
 
     TokenBlocks& get_token(Size i,Size j);
 

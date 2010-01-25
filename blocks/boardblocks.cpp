@@ -155,7 +155,7 @@ void BoardBlocks::update_playable() {
     }
 
     while (not queue.empty()) {
-        TokenBlocks *current = queue.top();
+        TokenBlocks *current = queue.front();
         queue.pop();
 
         assert(current->color!=forbidden_color);
