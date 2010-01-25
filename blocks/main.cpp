@@ -614,7 +614,7 @@ private:
 
 int main() {
     try {
-        srand(time(NULL));
+        //srand(time(NULL));
         //cout.precision(2);
 
         SdlManager::init();

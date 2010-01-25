@@ -3,6 +3,7 @@
 
 #include "board.h"
 #include <queue>
+#include <set>
 
 enum Color {VIOLET,BLUE,ORANGE,GREEN,YELLOW,RED,NONE};
 
@@ -52,15 +53,16 @@ public:
 protected:
     void update_playable();
 private:
+    typedef std::set<Color> Colors;
     typedef std::priority_queue<TokenBlocks*> Queue;
 
-    static void update_playable_token(TokenBlocks* current, const Color color);
-    static void update_won_token(TokenBlocks* neighbor, const MoveBlocks &move, Queue& queue);
+    static void update_playable_token(TokenBlocks* current, const TokenBlocks* neighbor, const Color forbidden_color, Queue &queue);
 
     TokenBlocks& get_token(Size i,Size j);
 
     MoveBlocks *lastmove;
 
+    Colors playable_colors;
 	const Size width;
 	const Size height;
 	const Size size;

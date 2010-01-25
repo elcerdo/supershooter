@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdlib>
 #include <list>
-#include <set>
 using std::cout;
 using std::endl;
 
@@ -132,29 +131,43 @@ Token BoardBlocks::get_current_player() const {
     else return other_player(lastmove->player);
 }
 
-void BoardBlocks::update_playable_token(TokenBlocks* current,const Color color) {
-    if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
+void BoardBlocks::update_playable_token(TokenBlocks* current, const TokenBlocks* neighbor, const Color forbidden_color, Queue &queue) {
+    if (current->player!=NOT_PLAYED or current->playable) return; //already played;
+    if (neighbor->player!=NOT_PLAYED and current->color!=forbidden_color) queue.push(current);
+    if (neighbor->player==NOT_PLAYED and current->color==neighbor->color) queue.push(current);
 }
 
 void BoardBlocks::update_playable() {
     Token player = PLAYER_1;
-    Color color  = NONE;
+    Color forbidden_color  = NONE;
     if (lastmove) {
         player = other_player(lastmove->player);
-        color  = lastmove->color;
+        forbidden_color  = lastmove->color;
     }
+
+    Queue queue;
+    playable_colors.clear();
 
     for (int k=0; k<size; k++) {
-        flat[k].playable = false;
+        TokenBlocks *current = &flat[k];
+        current->playable = false;
+        if (current->player==player) queue.push(current);
     }
 
-	for (Size row=0; row<height; row++) for (Size column=0; column<width; column++) {
-        if (get_const_token(row,column).player != player) continue;
+    while (not queue.empty()) {
+        TokenBlocks *current = queue.top();
+        queue.pop();
 
-        if (row>0)          update_playable_token(&get_token(row-1,column),color);
-        if (row<height-1)   update_playable_token(&get_token(row+1,column),color);
-        if (column>0)       update_playable_token(&get_token(row,column-1),color);
-        if (column<width-1) update_playable_token(&get_token(row,column+1),color);
+        assert(current->color!=forbidden_color);
+        if (current->player==NOT_PLAYED) {
+            current->playable = true;
+            playable_colors.insert(current->color);
+        }
+
+        if (current->i>0)        update_playable_token(&get_token(current->i-1,current->j),current,forbidden_color,queue);
+        if (current->i<height-1) update_playable_token(&get_token(current->i+1,current->j),current,forbidden_color,queue);
+        if (current->j>0)        update_playable_token(&get_token(current->i,current->j-1),current,forbidden_color,queue);
+        if (current->j<width-1)  update_playable_token(&get_token(current->i,current->j+1),current,forbidden_color,queue);
     }
 }
 
@@ -192,6 +205,11 @@ Board *BoardBlocks::deepcopy() const {
         dest.i      = orig.i;
         dest.j      = orig.j;
         dest.playable = orig.playable;
+    }
+
+    copy->playable_colors.clear();
+    for (Colors::const_iterator i=playable_colors.begin(); i!=playable_colors.end(); i++) {
+        copy->playable_colors.insert(*i);
     }
 
     return copy;
@@ -271,32 +289,14 @@ bool BoardBlocks::is_move_valid(const MoveBlocks &move) const {
     if (lastmove) player = other_player(lastmove->player);
 
     if (move.color==NONE or move.player!=player) return false;
-    for (int k=0; k<size; k++) {
-        const TokenBlocks &current = flat[k];
-        if (current.playable and current.color==move.color) return true;
-    }
-    return false;
+
+    return (playable_colors.find(move.color)!=playable_colors.end());
 }
 
 Moves BoardBlocks::get_possible_moves(Token player) const {
-    typedef std::set<Color> Colors;
-    Colors colors;
-	
-    for (int k=0; k<size; k++) {
-        const TokenBlocks &current = flat[k];
-        if (current.playable) colors.insert(current.color);
-    }
-
 	Moves moves;
-    for (Colors::const_iterator i=colors.begin(); i!=colors.end(); i++) { moves.push_back(new MoveBlocks(player,*i)); }
+    for (Colors::const_iterator i=playable_colors.begin(); i!=playable_colors.end(); i++) { moves.push_back(new MoveBlocks(player,*i)); }
 	return moves;
-}
-
-void BoardBlocks::update_won_token(TokenBlocks* neighbor, const MoveBlocks &move, Queue& queue) {
-    if (neighbor->color==move.color and neighbor->player==NOT_PLAYED) {
-        queue.push(neighbor);
-        neighbor->player = move.player;
-    }
 }
 
 void BoardBlocks::play_move(const Move &abstract_move) {
@@ -304,31 +304,16 @@ void BoardBlocks::play_move(const Move &abstract_move) {
 
 	assert(this->is_move_valid(move));
 
-    Queue queue;
-
     for (int k=0; k<size; k++) {
-        TokenBlocks *token = &flat[k];
-        if (token->playable and token->color==move.color) {
-            queue.push(token);
-            token->player = move.player;
+        TokenBlocks &token = flat[k];
+
+        if (token.playable and token.color==move.color) {
+            token.player = move.player;
         }
-    }
 
-    while (not queue.empty()) {
-        const TokenBlocks *current = queue.top();
-        queue.pop();
-        
-        assert(current->color==move.color and current->player==move.player);
-
-        if (current->i>0)        update_won_token(&get_token(current->i-1,current->j),move,queue);
-        if (current->i<height-1) update_won_token(&get_token(current->i+1,current->j),move,queue);
-        if (current->j>0)        update_won_token(&get_token(current->i,current->j-1),move,queue);
-        if (current->j<width-1)  update_won_token(&get_token(current->i,current->j+1),move,queue);
-    }
-
-    for (int k=0; k<size; k++) {
-        TokenBlocks &current = flat[k];
-        if (current.player==move.player) current.color = move.color;
+        if (token.player==move.player) {
+            token.color = move.color;
+        }
     }
 
     if (lastmove) delete lastmove;
