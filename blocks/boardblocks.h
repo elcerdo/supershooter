@@ -52,7 +52,10 @@ public:
     int get_p2score() const;
 protected:
     void update_playable();
-
+    void update_playable(TokenBlocks* current,Color color)
+    {
+        if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
+    }
 private:
     typedef std::pair<int,BoardBlocks::TokenBlocks*> Seed;
 

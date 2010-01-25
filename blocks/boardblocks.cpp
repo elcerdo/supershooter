@@ -97,7 +97,7 @@ BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(NULL), wid
     if (not init) return;
 
     assert(width%2==0 and height%2==0);
-    srand(time(NULL));
+    //srand(time(NULL));
 	for (Size row=0; row<height; row++) for (Size column=0; column<width/2; column++) {
         Color color = static_cast<Color>(rand()%6); //FIXME hardcoded color number
         {
@@ -146,15 +146,10 @@ void BoardBlocks::update_playable() {
 	for (Size row=0; row<height; row++) for (Size column=0; column<width; column++) {
         if (get_const_token(row,column).player != player) continue;
 
-        Tokens neighbors;
-        if (row>0) neighbors.push_back(&get_token(row-1,column));
-        if (row<height-1) neighbors.push_back(&get_token(row+1,column));
-        if (column>0) neighbors.push_back(&get_token(row,column-1));
-        if (column<width-1) neighbors.push_back(&get_token(row,column+1));
-        for (Tokens::iterator i=neighbors.begin(); i!=neighbors.end(); i++) {
-            TokenBlocks *current = *i;
-            if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
-        }
+        if (row>0) update_playable(&get_token(row-1,column),color);
+        if (row<height-1) update_playable(&get_token(row+1,column),color);
+        if (column>0) update_playable(&get_token(row,column-1),color);
+        if (column<width-1) update_playable(&get_token(row,column+1),color);
     }
 }
 
