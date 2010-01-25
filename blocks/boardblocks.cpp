@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <list>
+#include <set>
 using std::cout;
 using std::endl;
 
@@ -97,7 +98,6 @@ BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(NULL), wid
     if (not init) return;
 
     assert(width%2==0 and height%2==0);
-    //srand(time(NULL));
 	for (Size row=0; row<height; row++) for (Size column=0; column<width/2; column++) {
         Color color = static_cast<Color>(rand()%6); //FIXME hardcoded color number
         {
@@ -132,6 +132,10 @@ Token BoardBlocks::get_current_player() const {
     else return other_player(lastmove->player);
 }
 
+void BoardBlocks::update_playable_token(TokenBlocks* current,const Color color) {
+    if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
+}
+
 void BoardBlocks::update_playable() {
     Token player = PLAYER_1;
     Color color  = NONE;
@@ -140,16 +144,17 @@ void BoardBlocks::update_playable() {
         color  = lastmove->color;
     }
 
-    for (int k=0; k<size; k++) { flat[k].playable = false; }
+    for (int k=0; k<size; k++) {
+        flat[k].playable = false;
+    }
 
-    typedef std::list<TokenBlocks*> Tokens;
 	for (Size row=0; row<height; row++) for (Size column=0; column<width; column++) {
         if (get_const_token(row,column).player != player) continue;
 
-        if (row>0) update_playable(&get_token(row-1,column),color);
-        if (row<height-1) update_playable(&get_token(row+1,column),color);
-        if (column>0) update_playable(&get_token(row,column-1),color);
-        if (column<width-1) update_playable(&get_token(row,column+1),color);
+        if (row>0)          update_playable_token(&get_token(row-1,column),color);
+        if (row<height-1)   update_playable_token(&get_token(row+1,column),color);
+        if (column>0)       update_playable_token(&get_token(row,column-1),color);
+        if (column<width-1) update_playable_token(&get_token(row,column+1),color);
     }
 }
 
@@ -287,49 +292,38 @@ Moves BoardBlocks::get_possible_moves(Token player) const {
 	return moves;
 }
 
-bool BoardBlocks::SeedGreater::operator()(const Seed &a, const Seed &b) {
-    return a.first > b.first;
+void BoardBlocks::update_won_token(TokenBlocks* neighbor, const MoveBlocks &move, Queue& queue) {
+    if (neighbor->color==move.color and neighbor->player==NOT_PLAYED) {
+        queue.push(neighbor);
+        neighbor->player = move.player;
+    }
 }
 
 void BoardBlocks::play_move(const Move &abstract_move) {
-    typedef std::list<TokenBlocks*> Tokens;
-
 	const MoveBlocks &move=dynamic_cast<const MoveBlocks&>(abstract_move);
 
 	assert(this->is_move_valid(move));
 
-    SeedsQueue queue;
-    TokenBlocksSet won;
+    Queue queue;
 
     for (int k=0; k<size; k++) {
         TokenBlocks *token = &flat[k];
         if (token->playable and token->color==move.color) {
-            queue.push(std::make_pair(0,token));
-            won.insert(token);
+            queue.push(token);
+            token->player = move.player;
         }
     }
 
     while (not queue.empty()) {
-        Seed current_seed = queue.top();
+        const TokenBlocks *current = queue.top();
         queue.pop();
         
-        const int distance = current_seed.first;
-        const TokenBlocks *current = current_seed.second;
-        //cout<<"TOP ";
-        //current->print();
-        //cout<<" distance="<<distance<<" queue_size="<<queue.size()<<endl;
+        assert(current->color==move.color and current->player==move.player);
 
-        assert(current->color==move.color and current->player==NOT_PLAYED);
-
-        if (current->i>0) update_won(&get_token(current->i-1,current->j),current->color,distance,won,queue);
-        if (current->i<height-1) update_won(&get_token(current->i+1,current->j),current->color,distance,won,queue);
-        if (current->j>0) update_won(&get_token(current->i,current->j-1),current->color,distance,won,queue);
-        if (current->j<width-1) update_won(&get_token(current->i,current->j+1),current->color,distance,won,queue);
-        //cout<<neighbors.size()<<" NEIGHBORS"<<endl;
-    }
-
-    for (TokenBlocksSet::const_iterator i=won.begin(); i!=won.end(); i++) {
-        (*i)->player = move.player;
+        if (current->i>0)        update_won_token(&get_token(current->i-1,current->j),move,queue);
+        if (current->i<height-1) update_won_token(&get_token(current->i+1,current->j),move,queue);
+        if (current->j>0)        update_won_token(&get_token(current->i,current->j-1),move,queue);
+        if (current->j<width-1)  update_won_token(&get_token(current->i,current->j+1),move,queue);
     }
 
     for (int k=0; k<size; k++) {

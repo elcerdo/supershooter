@@ -3,7 +3,6 @@
 
 #include "board.h"
 #include <queue>
-#include <set>
 
 enum Color {VIOLET,BLUE,ORANGE,GREEN,YELLOW,RED,NONE};
 
@@ -53,29 +52,10 @@ public:
 protected:
     void update_playable();
 private:
-    typedef std::set<TokenBlocks*> TokenBlocksSet;
-    typedef std::pair<int,BoardBlocks::TokenBlocks*> Seed;
+    typedef std::priority_queue<TokenBlocks*> Queue;
 
-    struct SeedGreater {
-        bool operator()(const Seed &a, const Seed &b);
-    };
-    typedef std::priority_queue<Seed,std::vector<Seed>,SeedGreater> SeedsQueue;
-    void update_playable(TokenBlocks* current,Color color)
-    {
-        if (current->color!=color and current->player==NOT_PLAYED) current->playable=true;
-    }
-    void update_won(TokenBlocks* neighbor,const Color current_color,\
-            const int distance ,TokenBlocksSet& won,SeedsQueue& queue){
-        bool not_in_won = (won.find(neighbor)==won.end());
-        //cout<<"PUSHED ";
-        //neighbor->print();
-        //cout<<" "<<distance+1<<" "<<not_in_won<<endl;
-        if (neighbor->color==current_color and neighbor->player==NOT_PLAYED and not_in_won) {
-            queue.push(std::make_pair(distance+1,neighbor));
-            won.insert(neighbor);
-        }
-    }
-
+    static void update_playable_token(TokenBlocks* current, const Color color);
+    static void update_won_token(TokenBlocks* neighbor, const MoveBlocks &move, Queue& queue);
 
     TokenBlocks& get_token(Size i,Size j);
 
