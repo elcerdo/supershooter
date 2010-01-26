@@ -161,7 +161,7 @@ Token Node::play_random_game(Board *board,Token player) {
 
     assert(mode==NORMAL);
     
-    if (father) board->play_move(*move); //root as no move
+    if (father) board->play_move(*move); //root has no move
 
     if (father) {
         Token winner=board->check_for_win();
