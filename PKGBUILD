@@ -10,7 +10,6 @@ license=('GPL')
 depends=(sdl sdl_mixer sdl_image boost)
 makedepends=(cmake)
 source=(http://github.com/elcerdo/${pkgname}/tarball/${pkgver})
-md5sums=('02733d4e3b25364cd560b43f2d7156a1')
 
 build() {
   cd "${srcdir}/$(ls ${srcdir} | grep "elcerdo")"

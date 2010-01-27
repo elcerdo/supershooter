@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Encoding=UTF-8
+
+Name=Blocks
+Comment=A stategy game with uct bot
+
+Type=Application
+Categories=Application;Game;ArcadeGame;
+
+TryExec=blocks
+Exec=blocks
+
+Icon=blocks.xpm
+Terminal=false

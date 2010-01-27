@@ -623,7 +623,9 @@ int main() {
         SoundManager::init();
         if (not SoundManager::get()->load_directory("data"))
         if (not SoundManager::get()->load_directory("../data"))
-        if (not SoundManager::get()->load_directory("../../data")) {
+        if (not SoundManager::get()->load_directory("../../data"))
+        if (not SoundManager::get()->load_directory("/usr/share/supershooter/data"))
+        if (not SoundManager::get()->load_directory("/usr/local/share/supershooter/data")) {
             cerr<<"can't locate sound data..."<<endl;
             return 1;
         }
@@ -632,7 +634,9 @@ int main() {
         SpriteManager::init();
         if (not SpriteManager::get()->load_directory("data"))
         if (not SpriteManager::get()->load_directory("../data"))
-        if (not SpriteManager::get()->load_directory("../../data")) {
+        if (not SpriteManager::get()->load_directory("../../data"))
+        if (not SpriteManager::get()->load_directory("/usr/share/supershooter/data"))
+        if (not SpriteManager::get()->load_directory("/usr/local/share/supershooter/data")) {
             cerr<<"can't locate sprite data..."<<endl;
             return 1;
         }
