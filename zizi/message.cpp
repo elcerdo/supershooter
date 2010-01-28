@@ -15,11 +15,11 @@ MessageManager::~MessageManager() { unregister_self(); }
 
 void MessageManager::add_message(const std::string &message) {
     //std::cout<<"MESSAGE: "<<message<<std::endl;
-    Text *text=SpriteManager::get()->get_text(message,"font00",Text::RIGHT);
+    Text *text=SpriteManager::get()->get_text(message,"fonttiny",Text::RIGHT);
     text->x=SdlManager::get()->width-8;
+    text->alpha=maxalpha;
     text->factorx=.5;
     text->factory=.5;
-    text->alpha=maxalpha;
     text->update_alpha();
     texts.push_front(text);
 }
@@ -41,7 +41,7 @@ bool MessageManager::frame_entered(float t,float dt) {
         if (count>=nplain) { (*i)->alpha=maxalpha*(1.-static_cast<float>(count-nplain)/(nmessage-nplain)); (*i)->update_alpha(); }
         (*i)->draw(dt);
         count++;
-        y-=16;
+        y-=(*i)->h*(*i)->factory + 2;
         //y+=16;
     }
     return true;

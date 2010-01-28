@@ -9,7 +9,7 @@ class MessageManager : public Listener {
 public:
     static MessageManager *get();
     static void free();
-    static void init(size_t nmessage=15,size_t nfade=5);
+    static void init(size_t nmessage=30,size_t nfade=5);
 
     void add_message(const std::string &message);
     void set_display(bool disp);
