@@ -108,8 +108,8 @@ public:
     std::string get_status() const {
         if (not board) return "uninitialized";
 
-        if (winner==PLAYER_1) return "p1 win";
-        if (winner==PLAYER_2) return "p2 win";
+        if (winner==PLAYER_1) return "p1 won";
+        if (winner==PLAYER_2) return "p2 won";
 
         Token player = board->get_current_player();
         if (player==PLAYER_1) return "p1 playing";
@@ -125,6 +125,8 @@ public:
         if (move) board->play_move(*move);
 
         winner = board->check_for_win(); 
+        if (winner==PLAYER_1) MessageManager::get()->add_message("p1 won");
+        if (winner==PLAYER_2) MessageManager::get()->add_message("p2 won");
         board_modified();
 
         banco();
@@ -384,7 +386,7 @@ void pixel_callback(Button *abstract) {
     Pixel *but = dynamic_cast<Pixel*>(abstract);
     assert(but);
     MoveBlocks move(hanswer->get_current_player(),but->get_color());
-    MessageManager::get()->add_message("human played");
+    //MessageManager::get()->add_message("human played");
     hanswer->submit_move(&move);
 }
 
@@ -428,14 +430,13 @@ public:
     }
     virtual void start_playing(const Board *board, const Move *oppmove,Submittable *answer) {
         assert(answer==hanswer);
-        if (sync_board(static_cast<const BoardBlocks*>(board),true)) MessageManager::get()->add_message("human playing");
-        else {
+        if (!sync_board(static_cast<const BoardBlocks*>(board),true)) {
             MessageManager::get()->add_message("no possible move");
             answer->submit_move(NULL);
-        }
+        } // else MessageManager::get()->add_message("human playing");
     }
     virtual void board_updated(const Board *board) {
-        MessageManager::get()->add_message("updating board");
+        //MessageManager::get()->add_message("updating board");
         sync_board(static_cast<const BoardBlocks*>(board),false);
     }
 
@@ -595,19 +596,19 @@ protected:
     Group *group;
 private:
     static void human_human_callback(Button *but) {
-        cout<<"human vs human"<<endl;
+        MessageManager::get()->add_message("human vs human");
         static_cast<MainApp*>(but->data)->launch_game(true,true);
     }
     static void human_bot_callback(Button *but) {
-        cout<<"human vs bot"<<endl;
+        MessageManager::get()->add_message("human vs bot");
         static_cast<MainApp*>(but->data)->launch_game(true,false);
     }
     static void bot_human_callback(Button *but) {
-        cout<<"bot vs human"<<endl;
+        MessageManager::get()->add_message("bot vs human");
         static_cast<MainApp*>(but->data)->launch_game(false,true);
     }
     static void bot_bot_callback(Button *but) {
-        cout<<"bot vs bot"<<endl;
+        MessageManager::get()->add_message("bot vs bot");
         static_cast<MainApp*>(but->data)->launch_game(false,false);
     }
 };
