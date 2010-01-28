@@ -3,9 +3,9 @@
 
 #include "board.h"
 #include <queue>
-#include <set>
 
-enum Color {VIOLET,BLUE,ORANGE,GREEN,YELLOW,RED,NONE};
+#define NCOLOR 6
+enum Color {VIOLET=0,BLUE=1,ORANGE=2,GREEN=3,YELLOW=4,RED=5,NONE=6};
 
 class MoveBlocks : public Move {
 friend class BoardBlocks;
@@ -53,7 +53,6 @@ public:
 protected:
     void update_playable();
 private:
-    typedef std::set<Color> Colors;
     typedef std::queue<TokenBlocks*> Queue;
 
     inline static void update_playable_token(TokenBlocks* current, const TokenBlocks* neighbor, const Color forbidden_color, Queue &queue);
@@ -62,7 +61,7 @@ private:
 
     MoveBlocks *lastmove;
 
-    Colors playable_colors;
+    bool playable_colors[NCOLOR];
 	const Size width;
 	const Size height;
 	const Size size;

@@ -97,8 +97,12 @@ BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(NULL), wid
     if (not init) return;
 
     assert(width%2==0 and height%2==0);
+
+    for (int k=0; k<NCOLOR; k++) { playable_colors[k] = false; }
+    
 	for (Size row=0; row<height; row++) for (Size column=0; column<width/2; column++) {
-        Color color = static_cast<Color>(rand()%6); //FIXME hardcoded color number
+        Color color = static_cast<Color>(rand()%NCOLOR);
+        assert(color!=NONE);
         {
             TokenBlocks &current = get_token(row,column);
             current.i        = row;
@@ -107,7 +111,8 @@ BoardBlocks::BoardBlocks(Size width,Size height,bool init) : lastmove(NULL), wid
             current.player   = NOT_PLAYED;
             current.color    = color;
         }
-        color = static_cast<Color>(5-color); //FIXME hardcoded color number
+        color = static_cast<Color>(NCOLOR-1-color);
+        assert(color!=NONE);
         {
             TokenBlocks &current = get_token(height-1-row,width-1-column);
             current.i        = height-1-row;
@@ -146,7 +151,7 @@ void BoardBlocks::update_playable() {
     }
 
     Queue queue;
-    playable_colors.clear();
+    for (int k=0; k<NCOLOR; k++) { playable_colors[k] = false; }
 
     for (int k=0; k<size; k++) {
         TokenBlocks *current = &flat[k];
@@ -161,7 +166,7 @@ void BoardBlocks::update_playable() {
         assert(current->color!=forbidden_color);
         if (current->player==NOT_PLAYED) {
             current->playable = true;
-            playable_colors.insert(current->color);
+            playable_colors[static_cast<int>(current->color)] = true;
         }
 
         if (current->i>0)        update_playable_token(&get_token(current->i-1,current->j),current,forbidden_color,queue);
@@ -207,11 +212,7 @@ Board *BoardBlocks::deepcopy() const {
         dest.playable = orig.playable;
     }
 
-    copy->playable_colors.clear();
-    for (Colors::const_iterator i=playable_colors.begin(); i!=playable_colors.end(); i++) {
-        copy->playable_colors.insert(*i);
-    }
-
+    for (int k=0; k<NCOLOR; k++) { copy->playable_colors[k] = playable_colors[k]; }
     return copy;
 }
 
@@ -290,12 +291,12 @@ bool BoardBlocks::is_move_valid(const MoveBlocks &move) const {
 
     if (move.color==NONE or move.player!=player) return false;
 
-    return (playable_colors.find(move.color)!=playable_colors.end());
+    return playable_colors[move.color];
 }
 
 Moves BoardBlocks::get_possible_moves(Token player) const {
 	Moves moves;
-    for (Colors::const_iterator i=playable_colors.begin(); i!=playable_colors.end(); i++) { moves.push_back(new MoveBlocks(player,*i)); }
+    for (int k=0; k<NCOLOR; k++) if (playable_colors[k]) { moves.push_back(new MoveBlocks(player,static_cast<Color>(k))); }
 	return moves;
 }
 
