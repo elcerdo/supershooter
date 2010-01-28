@@ -1,7 +1,7 @@
 # Contributor: elcerdo <georges.wbush@laposte.net>
 maintainer=elcerdo
 pkgname=supershooter
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc="a shoot them up game with a lot of bullets"
 arch=(i686 x86_64)
@@ -10,10 +10,10 @@ license=('GPL')
 depends=(sdl sdl_mixer sdl_image boost ode)
 makedepends=(cmake)
 source=(http://github.com/elcerdo/${pkgname}/tarball/${pkgver})
-md5sums=('618098cb2c62a4613842d519b1503038')
+md5sums=('878a30c7bd9cd346acd791d8ce7791cc')
 
 build() {
-  cd "${srcdir}/$(ls ${srcdir} | grep "elcerdo")"
+  cd "${srcdir}/$(ls -t ${srcdir} | grep "elcerdo" | head -n 1)"
 
   cmake . \
   -DCMAKE_INSTALL_PREFIX:FILEPATH=/usr \
